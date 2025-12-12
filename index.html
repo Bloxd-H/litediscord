@@ -23,8 +23,8 @@
 </head>
 <body class="font-sans h-screen flex flex-col">
     <div id="auth-section" class="w-full max-w-md mx-auto my-auto p-8 rounded-lg shadow-xl" style="background-color: var(--bg-secondary);">
-        <h1 class="text-2xl font-bold text-center mb-2">Token Login</h1>
-        <p class="text-center text-sm mb-6" style="color:var(--text-secondary)">Enter your Discord Token directly.</p>
+        <h1 class="text-2xl font-bold text-center mb-2">Welcome Back!</h1>
+        <p class="text-center text-sm mb-6" style="color:var(--text-secondary)">Enter your Discord Token</p>
         <div id="login-error" class="text-red-500 text-xs mb-3"></div>
         <form id="login-form" class="space-y-4">
             <div>
@@ -69,8 +69,8 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'https://discord.com/api/v9';
-        const GATEWAY_URL = 'wss://gateway.discord.gg/?v=9&encoding=json';
+        const API_BASE_URL = 'https://discord.com/api/v10';
+        const GATEWAY_URL = 'wss://gateway.discord.gg/?v=10&encoding=json';
         let userToken = null;
         let ws = null;
         let currentUserId = null;
