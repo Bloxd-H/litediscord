@@ -40,11 +40,16 @@
 
     <div id="main-app" class="hidden flex-1 flex min-h-0">
         <div class="w-20 p-2 flex flex-col items-center gap-2 overflow-y-auto" style="background-color: var(--bg-tertiary);">
+            <div id="dm-icon-container" class="mb-2">
+                <div id="dm-icon" title="Direct Messages" class="server-icon bg-gray-600 flex items-center justify-center cursor-pointer text-white">
+                    <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 576 512"><path d="M480 256c0 8.8-7.2 16-16 16H320c0-35.3 28.7-64 64-64 8.8 0 16 7.2 16 16v32c0 8.8 7.2 16 16 16h64zm-144 0c0-53 43-96 96-96s96 43 96 96-43 96-96 96-96-43-96-96zm-176-48c0-8.8-7.2-16-16-16H48c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h112c8.8 0 16-7.2 16-16v-32zM224 256c0-53-43-96-96-96S32 203 32 256s43 96 96 96 96-43 96-96zM528 320H48c-26.5 0-48 21.5-48 48v96c0 26.5 21.5 48 48 48h480c26.5 0 48-21.5 48-48v-96c0-26.5-21.5-48-48-48z"/></svg>
+                </div>
+            </div>
             <div id="guild-list" class="flex flex-col items-center gap-2"></div>
         </div>
         <div class="flex-1 flex min-h-0" style="background-color: var(--bg-secondary);">
-            <div id="channel-panel" class="hidden w-60 p-2 flex-col border-r" style="border-color: var(--border-color);">
-                <div class="flex justify-between items-center p-2 mb-2">
+            <div id="channel-panel" class="hidden w-60 p-2 flex flex-col border-r min-h-0" style="border-color: var(--border-color);">
+                <div class="flex justify-between items-center p-2 mb-2 flex-shrink-0">
                     <h2 id="guild-name" class="font-bold text-lg truncate"></h2>
                     <button onclick="logout()" title="Logout" class="text-red-500 hover:text-red-400">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
@@ -53,16 +58,18 @@
                 <div id="channel-list" class="flex-1 overflow-y-auto space-y-1"></div>
             </div>
             <div id="chat-section" class="hidden flex-1 flex flex-col min-h-0">
-                <div class="p-3 border-b flex items-center justify-between" style="border-color: var(--border-color);">
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl" style="color:var(--text-secondary)">#</span>
-                        <div id="current-ch-name" class="font-bold text-lg"></div>
-                    </div>
+                <div class="p-3 border-b flex items-center justify-between flex-shrink-0" style="border-color: var(--border-color);">
+                     <div id="current-ch-name" class="flex items-center gap-2 truncate"></div>
                     <div id="ws-status" class="w-3 h-3 rounded-full bg-gray-500" title="WebSocket Disconnected"></div>
                 </div>
                 <div id="message-container" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
                 <div class="p-4 border-t" style="border-color: var(--border-color);">
-                    <input type="text" id="message-input" placeholder="Message..." class="input-field w-full p-3 rounded-md" disabled>
+                    <div class="flex items-center gap-2">
+                         <input type="text" id="message-input" placeholder="Message..." class="input-field w-full p-3 rounded-md" disabled>
+                         <button id="send-button" class="p-3 rounded-md hover:opacity-80" style="background-color:var(--button-bg)" disabled>
+                            <svg class="w-6 h-6" fill="white" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -70,15 +77,20 @@
 
     <script>
         const API_BASE_URL = 'https://discord.com/api/v10';
-        const GATEWAY_URL = 'wss://gateway.discord.gg/?v=10&encoding=json';
+        let GATEWAY_URL = 'wss://gateway.discord.gg/?v=10&encoding=json';
         let userToken = null;
         let ws = null;
         let currentUserId = null;
+        
+        let sessionId, heartbeatInterval, lastSequence;
+        let heartbeatAckReceived = true;
 
         window.addEventListener('DOMContentLoaded', () => { 
             initTheme(); 
             document.getElementById('login-form').addEventListener('submit', handleLogin); 
-            
+            document.getElementById('dm-icon').addEventListener('click', loadDms);
+            document.getElementById('send-button').addEventListener('click', sendMessage);
+
             let storedToken = localStorage.getItem('token'); 
             if (storedToken) {
                 storedToken = storedToken.replace(/"/g, '');
@@ -107,33 +119,18 @@
             buttonText.classList.add('hidden');
             spinner.classList.remove('hidden');
             errorDiv.textContent = '';
-
             userToken = token; 
             
             const user = await apiRequest('/users/@me'); 
-            
             if (user && user.id) { 
                 currentUserId = user.id;
-                
                 localStorage.setItem('token', `"${token}"`); 
-                
-                let savedTokens = {};
-                try {
-                    const rawTokens = localStorage.getItem('tokens');
-                    if (rawTokens) {
-                        savedTokens = JSON.parse(rawTokens);
-                    }
-                } catch(e) { console.error("Tokens parsing error", e); }
-                
-                savedTokens[user.id] = `"${token}"`;
-                localStorage.setItem('tokens', JSON.stringify(savedTokens));
-
                 document.getElementById('auth-section').classList.add('hidden'); 
                 document.getElementById('main-app').classList.remove('hidden'); 
                 initializeApp(); 
             } else { 
                 logout(false);
-                errorDiv.textContent = 'Invalid Token or CORS Error (Try disabling CORS)';
+                errorDiv.textContent = 'Invalid Token. Please check your token and try again.';
             }
             
             loginButton.disabled = false;
@@ -142,13 +139,15 @@
         }
 
         function logout(clear = true) { 
-            if (clear) {
-                localStorage.removeItem('token'); 
-            }
+            if (clear) localStorage.removeItem('token'); 
             userToken = null; 
-            if (ws) ws.close(); 
+            if (ws) { ws.onclose = null; ws.close(); }
+            clearInterval(heartbeatInterval);
             document.getElementById('auth-section').classList.remove('hidden'); 
             document.getElementById('main-app').classList.add('hidden'); 
+            document.getElementById('guild-list').innerHTML = '';
+            document.getElementById('channel-panel').classList.add('hidden');
+            document.getElementById('chat-section').classList.add('hidden');
         }
 
         async function initializeApp() { 
@@ -159,44 +158,30 @@
         async function apiRequest(path, method = 'GET', bodyData = null) { 
             if (!userToken) return null; 
             try { 
-                const headers = { 
-                    'Authorization': userToken, 
-                    'Content-Type': 'application/json',
-                }; 
-                
+                const headers = { 'Authorization': userToken, 'Content-Type': 'application/json' }; 
                 const options = { method, headers }; 
                 if (bodyData) options.body = JSON.stringify(bodyData); 
                 
                 const response = await fetch(API_BASE_URL + path, options); 
                 
-                if (response.status === 401) { 
-                    return null; 
-                } 
+                if (response.status === 401) { logout(); return null; } 
                 if (response.status === 204) return {};
-                if (!response.ok) {
-                    console.error(`API Error ${response.status}`);
-                    return null;
-                }
+                if (!response.ok) { console.error(`API Error ${response.status}`); return null; }
                 
                 return await response.json(); 
-            } catch (e) { 
-                console.error('API Request failed (CORS?):', e); 
-                return null; 
-            } 
+            } catch (e) { console.error('API Request failed:', e); return null; } 
         }
         
         let currentGuildId, currentChannelId, guildsCache = [], channelsCache = {}; 
-        let sessionId, heartbeatInterval, lastSequence;
-
+        
         async function loadGuilds() { 
-            const [settings, guilds] = await Promise.all([apiRequest('/users/@me/settings'), apiRequest('/users/@me/guilds')]); 
+            const guilds = await apiRequest('/users/@me/guilds');
             if (!guilds) return; 
             guildsCache = guilds; 
-            const sortedGuilds = [...guilds]; 
             
             const container = document.getElementById('guild-list'); 
             container.innerHTML = ''; 
-            sortedGuilds.forEach(g => { 
+            guilds.forEach(g => { 
                 const img = document.createElement('img'); 
                 img.id = `guild-${g.id}`; 
                 img.className = 'server-icon bg-gray-700 object-cover cursor-pointer'; 
@@ -206,12 +191,39 @@
                 container.appendChild(img); 
             }); 
         }
+        
+        async function loadDms() {
+            currentGuildId = null;
+            document.querySelectorAll('.server-icon').forEach(el => el.classList.remove('active'));
+            document.getElementById('dm-icon').classList.add('active');
+            document.getElementById('guild-name').innerText = "Direct Messages";
+            document.getElementById('channel-panel').classList.remove('hidden');
+            document.getElementById('chat-section').classList.add('hidden');
+
+            const channels = await apiRequest(`/users/@me/channels`);
+            if (!channels) return;
+            channelsCache['dms'] = channels;
+            
+            const container = document.getElementById('channel-list');
+            container.innerHTML = '';
+            channels.filter(c => c.type === 1 || c.type === 3)
+                .sort((a,b) => (b.last_message_id || 0) - (a.last_message_id || 0))
+                .forEach(c => {
+                    const el = document.createElement('div');
+                    el.id = `channel-${c.id}`;
+                    el.className = 'channel-item p-2 rounded-md cursor-pointer text-sm truncate';
+                    let name = c.name || (c.recipients.length > 0 ? (c.recipients[0].global_name || c.recipients[0].username) : 'Unnamed');
+                    el.innerText = name;
+                    el.onclick = () => selectChannel(c);
+                    container.appendChild(el);
+                });
+        }
+
 
         async function loadChannels(guildId) { 
             currentGuildId = guildId; 
-            currentChannelId = ''; 
             document.querySelectorAll('.server-icon').forEach(el => el.classList.remove('active')); 
-            document.getElementById(`guild-${guildId}`).classList.add('active'); 
+            document.getElementById(`guild-${guildId}`)?.classList.add('active'); 
             const guild = guildsCache.find(g => g.id === guildId); 
             document.getElementById('guild-name').innerText = guild?.name; 
             document.getElementById('channel-panel').classList.remove('hidden'); 
@@ -224,24 +236,37 @@
             const container = document.getElementById('channel-list'); 
             container.innerHTML = ''; 
             
-            channels.filter(c => c.type === 0).sort((a,b) => a.position - b.position).forEach(c => { 
-                const el = document.createElement('div'); 
-                el.id = `channel-${c.id}`; 
-                el.className = 'channel-item p-2 rounded-md cursor-pointer text-sm truncate'; 
-                el.innerText = `# ${c.name}`; 
-                el.onclick = () => selectChannel(c); 
-                container.appendChild(el); 
-            }); 
+            const VIEW_CHANNEL_PERMISSION = 1024n;
+            channels.filter(c => c.type === 0 && (BigInt(c.permissions) & VIEW_CHANNEL_PERMISSION) === VIEW_CHANNEL_PERMISSION)
+                .sort((a,b) => a.position - b.position)
+                .forEach(c => { 
+                    const el = document.createElement('div'); 
+                    el.id = `channel-${c.id}`; 
+                    el.className = 'channel-item p-2 rounded-md cursor-pointer text-sm truncate'; 
+                    el.innerText = `# ${c.name}`; 
+                    el.onclick = () => selectChannel(c); 
+                    container.appendChild(el); 
+                }); 
         }
 
         async function selectChannel(channel) { 
             currentChannelId = channel.id; 
             document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active')); 
-            document.getElementById(`channel-${channel.id}`).classList.add('active'); 
-            document.getElementById('chat-section').classList.remove('hidden'); 
-            document.getElementById('current-ch-name').innerText = channel.name; 
+            document.getElementById(`channel-${channel.id}`)?.classList.add('active'); 
+            document.getElementById('chat-section').classList.remove('hidden');
+            
+            let channelNameHTML;
+            if (channel.guild_id) { // Guild Channel
+                 channelNameHTML = `<span class="text-xl" style="color:var(--text-secondary)">#</span><span class="font-bold text-lg">${channel.name}</span>`;
+            } else { // DM Channel
+                 let name = channel.name || (channel.recipients.length > 0 ? (channel.recipients[0].global_name || channel.recipients[0].username) : 'Unnamed');
+                 channelNameHTML = `<span class="font-bold text-lg">${name}</span>`;
+            }
+            document.getElementById('current-ch-name').innerHTML = channelNameHTML;
+
             document.getElementById('message-container').innerHTML = ''; 
-            document.getElementById('message-input').disabled = false; 
+            document.getElementById('message-input').disabled = false;
+            document.getElementById('send-button').disabled = false;
             
             const messages = await apiRequest(`/channels/${channel.id}/messages?limit=50`); 
             if (messages) { 
@@ -266,9 +291,9 @@
                     : `<br><div class="mt-2 p-2 rounded-md" style="background-color: var(--bg-quaternary);">📎 <a href="${att.url}" target="_blank" class="hover:underline" style="color:var(--text-link);">${att.filename}</a></div>`; 
             }); 
 
-            div.innerHTML = `<div class="flex gap-4 py-1"><img src="${avatarUrl}" class="w-10 h-10 rounded-full flex-shrink-0 mt-1"><div><div><span class="font-bold">${displayName}</span><span class="text-xs ml-2" style="color:var(--text-secondary)">${new Date(msg.timestamp).toLocaleString()}</span></div><div style="word-wrap:break-word;">${contentHTML}</div></div></div>`; 
+            div.innerHTML = `<div class="flex gap-4 py-1"><img src="${avatarUrl}" class="w-10 h-10 rounded-full flex-shrink-0 mt-1"><div><div><span class="font-bold">${displayName}</span><span class="text-xs ml-2" style="color:var(--text-secondary)">${new Date(msg.timestamp).toLocaleString()}</span></div><div class="prose dark:prose-invert" style="word-wrap:break-word;">${contentHTML}</div></div></div>`; 
             
-            const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 30; 
+            const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 50; 
             container.appendChild(div); 
             if (shouldScroll) scrollToBottom(); 
         }
@@ -276,42 +301,54 @@
         async function sendMessage() { 
             const input = document.getElementById('message-input'); 
             const content = input.value.trim(); 
-            if (!content || !currentChannelId) return; 
+            if (!content || !currentChannelId || input.disabled) return; 
             input.value = ''; 
             await apiRequest(`/channels/${currentChannelId}/messages`, 'POST', { content: content, nonce: `temp_${Date.now()}` }); 
         }
+        
+        function connectWebSocket(isResuming = false) {
+            if (ws) ws.close();
+            const url = isResuming ? GATEWAY_URL.replace('?','/resume?') : GATEWAY_URL; // Simplistic resume URL logic
+            ws = new WebSocket(GATEWAY_URL);
 
-        function connectWebSocket() { 
-            if(ws) ws.close();
-            ws = new WebSocket(GATEWAY_URL); 
-            ws.onopen = () => console.log('WebSocket Connected'); 
-            ws.onmessage = onWebSocketMessage; 
-            ws.onclose = () => { 
-                console.warn('WebSocket disconnected.'); 
-                updateWsStatus(false); 
-                clearInterval(heartbeatInterval); 
-            }; 
-            ws.onerror = (error) => console.error('WebSocket Error:', error); 
+            ws.onmessage = onWebSocketMessage;
+            ws.onclose = (event) => {
+                console.warn(`WebSocket disconnected: ${event.code}`);
+                updateWsStatus(false);
+                clearInterval(heartbeatInterval);
+                if (event.code !== 4004) {
+                    setTimeout(() => connectWebSocket(true), 5000);
+                } else {
+                    logout();
+                }
+            };
+            ws.onerror = (error) => console.error('WebSocket Error:', error);
         }
+
 
         function onWebSocketMessage(event) { 
             const payload = JSON.parse(event.data); 
             if (payload.s) lastSequence = payload.s; 
             switch (payload.op) { 
                 case 0: handleDispatch(payload.t, payload.d); break; 
-                case 1: sendHeartbeat(); break; 
+                case 1: sendHeartbeat(); break;
+                case 7: ws.close(); connectWebSocket(true); break;
+                case 9: setTimeout(() => connectWebSocket(false), 2000); break;
                 case 10: 
                     startHeartbeat(payload.d.heartbeat_interval); 
-                    identify(); 
+                    if (sessionId) resume(); else identify();
                     break; 
+                case 11: heartbeatAckReceived = true; break;
             } 
         }
 
         function handleDispatch(type, data) { 
             if (type === 'READY') { 
                 sessionId = data.session_id; 
+                GATEWAY_URL = data.resume_gateway_url;
                 updateWsStatus(true); 
-                console.log('Gateway Ready.'); 
+            } else if (type === 'RESUMED') {
+                 updateWsStatus(true); 
             } else if (type === 'MESSAGE_CREATE' && data.channel_id === currentChannelId) { 
                 renderMessage(data); 
             } 
@@ -319,23 +356,30 @@
 
         function startHeartbeat(ms) { 
             if (heartbeatInterval) clearInterval(heartbeatInterval); 
-            sendHeartbeat(); 
-            heartbeatInterval = setInterval(sendHeartbeat, ms); 
+            heartbeatAckReceived = true;
+            heartbeatInterval = setInterval(() => {
+                if (!heartbeatAckReceived) {
+                    if (ws) ws.close();
+                    connectWebSocket(true);
+                    return;
+                }
+                sendHeartbeat();
+            }, ms);
         }
 
         function sendHeartbeat() { 
-            if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 1, d: lastSequence })); 
+            if (ws?.readyState === WebSocket.OPEN) {
+                heartbeatAckReceived = false;
+                ws.send(JSON.stringify({ op: 1, d: lastSequence })); 
+            }
+        }
+        
+        function resume() {
+            ws.send(JSON.stringify({ op: 6, d: { token: userToken, session_id: sessionId, seq: lastSequence }}));
         }
 
         function identify() { 
-            ws.send(JSON.stringify({ 
-                op: 2, 
-                d: { 
-                    token: userToken, 
-                    properties: { os: "Windows", browser: "Chrome", device: "" }, 
-                    compress: false 
-                } 
-            })); 
+            ws.send(JSON.stringify({ op: 2, d: { token: userToken, properties: { os: "Windows", browser: "Chrome", device: "" }, compress: false }})); 
         }
 
         function updateWsStatus(isConnected) { 
@@ -345,10 +389,7 @@
         }
 
         document.getElementById('message-input').addEventListener('keypress', e => { 
-            if (e.key === 'Enter' && !e.shiftKey) { 
-                e.preventDefault(); 
-                sendMessage(); 
-            } 
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } 
         });
 
         function scrollToBottom() { 
