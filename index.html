@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hybrid Discord Client v6 (Login Captcha Fix)</title>
+    <title>Discord Lite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { darkMode: 'class' }
@@ -33,50 +33,14 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #captcha-modal-overlay { background-color: rgba(0,0,0,0.7); }
         #captcha-modal-content { background-color: var(--bg-secondary); }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
-        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: var(--bg-secondary); } ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
 </head>
 <body class="font-sans h-screen flex flex-col">
 
-    <div id="auth-section" class="w-full max-w-md mx-auto my-auto p-8 rounded-lg shadow-xl" style="background-color: var(--bg-secondary);">
-        <h1 class="text-2xl font-bold text-center mb-2">Welcome back!</h1>
-        <p class="text-center text-sm mb-6" style="color:var(--text-secondary)">We're so excited to see you again!</p>
-        <div id="login-error" class="text-red-500 text-xs mb-3"></div>
-        <form id="login-form" class="space-y-4">
-            <div>
-                <label for="email" class="text-xs font-bold uppercase" style="color:var(--text-secondary)">Email</label>
-                <input type="email" id="email" class="input-field w-full p-2.5 rounded-md text-sm mt-1" required>
-            </div>
-            <div>
-                <label for="password" class="text-xs font-bold uppercase" style="color:var(--text-secondary)">Password</label>
-                <input type="password" id="password" class="input-field w-full p-2.5 rounded-md text-sm mt-1" required>
-            </div>
-            <button type="submit" id="login-button" class="bg-blue-600 hover:bg-blue-700 w-full px-4 py-3 rounded-md font-bold text-white flex items-center justify-center">
-                <span id="login-button-text">Login</span>
-                <div id="login-spinner" class="loader hidden"></div>
-            </button>
-        </form>
-    </div>
-
-    <div id="main-app" class="hidden flex-1 flex min-h-0">
-        <div class="w-20 p-2 flex flex-col items-center gap-2 overflow-y-auto" style="background-color: var(--bg-tertiary);"><div id="guild-list" class="flex flex-col items-center gap-2"></div></div>
-        <div class="flex-1 flex min-h-0" style="background-color: var(--bg-secondary);">
-            <div id="channel-panel" class="hidden w-60 p-2 flex-col border-r" style="border-color: var(--border-color);"><div class="flex justify-between items-center p-2 mb-2"><h2 id="guild-name" class="font-bold text-lg truncate"></h2><button onclick="logout()" title="Logout" class="text-red-500 hover:text-red-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button></div><div id="channel-list" class="flex-1 overflow-y-auto space-y-1"></div></div>
-            <div id="chat-section" class="hidden flex-1 flex flex-col min-h-0"><div class="p-3 border-b flex items-center justify-between" style="border-color: var(--border-color);"><div class="flex items-center gap-2"><span class="text-2xl" style="color:var(--text-secondary)">#</span><div id="current-ch-name" class="font-bold text-lg"></div></div><div id="ws-status" class="w-3 h-3 rounded-full bg-gray-500" title="WebSocket Disconnected"></div></div><div id="message-container" class="flex-1 overflow-y-auto p-4 space-y-4"></div><div class="p-4 border-t" style="border-color: var(--border-color);"><input type="text" id="message-input" placeholder="Message..." class="input-field w-full p-3 rounded-md" disabled></div></div>
-        </div>
-    </div>
-    
-    <div id="captcha-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
-        <div id="captcha-modal-overlay" class="absolute inset-0"></div>
-        <div id="captcha-modal-content" class="relative p-8 rounded-lg shadow-xl text-center">
-            <h3 class="text-xl font-bold mb-4">Verification Required</h3>
-            <p class="text-sm mb-4" style="color:var(--text-secondary)">Please complete the challenge below to continue.</p>
-            <div id="captcha-box" class="flex justify-center"></div>
-        </div>
-    </div>
+    <div id="auth-section" class="w-full max-w-md mx-auto my-auto p-8 rounded-lg shadow-xl" style="background-color: var(--bg-secondary);"><h1 class="text-2xl font-bold text-center mb-2">Welcome back!</h1><p class="text-center text-sm mb-6" style="color:var(--text-secondary)">We're so excited to see you again!</p><div id="login-error" class="text-red-500 text-xs mb-3"></div><form id="login-form" class="space-y-4"><div><label for="email" class="text-xs font-bold uppercase" style="color:var(--text-secondary)">Email</label><input type="email" id="email" class="input-field w-full p-2.5 rounded-md text-sm mt-1" required></div><div><label for="password" class="text-xs font-bold uppercase" style="color:var(--text-secondary)">Password</label><input type="password" id="password" class="input-field w-full p-2.5 rounded-md text-sm mt-1" required></div><button type="submit" id="login-button" class="bg-blue-600 hover:bg-blue-700 w-full px-4 py-3 rounded-md font-bold text-white flex items-center justify-center"><span id="login-button-text">Login</span><div id="login-spinner" class="loader hidden"></div></button></form></div>
+    <div id="main-app" class="hidden flex-1 flex min-h-0"><div class="w-20 p-2 flex flex-col items-center gap-2 overflow-y-auto" style="background-color: var(--bg-tertiary);"><div id="guild-list" class="flex flex-col items-center gap-2"></div></div><div class="flex-1 flex min-h-0" style="background-color: var(--bg-secondary);"><div id="channel-panel" class="hidden w-60 p-2 flex-col border-r" style="border-color: var(--border-color);"><div class="flex justify-between items-center p-2 mb-2"><h2 id="guild-name" class="font-bold text-lg truncate"></h2><button onclick="logout()" title="Logout" class="text-red-500 hover:text-red-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button></div><div id="channel-list" class="flex-1 overflow-y-auto space-y-1"></div></div><div id="chat-section" class="hidden flex-1 flex flex-col min-h-0"><div class="p-3 border-b flex items-center justify-between" style="border-color: var(--border-color);"><div class="flex items-center gap-2"><span class="text-2xl" style="color:var(--text-secondary)">#</span><div id="current-ch-name" class="font-bold text-lg"></div></div><div id="ws-status" class="w-3 h-3 rounded-full bg-gray-500" title="WebSocket Disconnected"></div></div><div id="message-container" class="flex-1 overflow-y-auto p-4 space-y-4"></div><div class="p-4 border-t" style="border-color: var(--border-color);"><input type="text" id="message-input" placeholder="Message..." class="input-field w-full p-3 rounded-md" disabled></div></div></div></div>
+    <div id="captcha-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center"><div id="captcha-modal-overlay" class="absolute inset-0"></div><div id="captcha-modal-content" class="relative p-8 rounded-lg shadow-xl text-center"><h3 class="text-xl font-bold mb-4">Verification Required</h3><p class="text-sm mb-4" style="color:var(--text-secondary)">Please complete the challenge below to continue.</p><div id="captcha-box" class="flex justify-center"></div></div></div>
 
     <script>
         const LOGIN_PROXY_URL = '/api/login';
@@ -101,19 +65,11 @@
             const buttonText = document.getElementById('login-button-text');
             const spinner = document.getElementById('login-spinner');
             const errorDiv = document.getElementById('login-error');
-
-            const toggleSpinner = (show) => {
-                loginButton.disabled = show;
-                buttonText.classList.toggle('hidden', show);
-                spinner.classList.toggle('hidden', !show);
-            };
-
+            const toggleSpinner = (show) => { loginButton.disabled = show; buttonText.classList.toggle('hidden', show); spinner.classList.toggle('hidden', !show); };
             errorDiv.textContent = '';
             toggleSpinner(true);
-
             let captchaKey = null;
             let loginSuccess = false;
-
             while (!loginSuccess) {
                 try {
                     const response = await fetch(LOGIN_PROXY_URL, {
@@ -121,9 +77,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ login: email, password: password, captcha_key: captchaKey })
                     });
-
                     const data = await response.json();
-
                     if (response.ok) {
                         if (data.token) {
                             loginSuccess = true;
@@ -132,14 +86,17 @@
                             throw new Error('Two-factor authentication is required.');
                         }
                     } else if (response.status === 400 && data.captcha_key) {
-                        const rqtoken = response.headers.get('x-captcha-rqtoken');
-                        captchaKey = await solveCaptcha(data.captcha_sitekey, rqtoken);
+                        captchaKey = await solveCaptcha({
+                            captcha_sitekey: data.captcha_sitekey,
+                            captcha_rqdata: data.captcha_rqdata,
+                            captcha_rqtoken: response.headers.get('x-captcha-rqtoken')
+                        });
                     } else {
                         throw new Error(data.message || 'Login failed');
                     }
                 } catch (error) {
                     errorDiv.textContent = `Login Error: ${error.message}`;
-                    break; 
+                    break;
                 }
             }
             toggleSpinner(false);
@@ -149,33 +106,37 @@
         function logout() { localStorage.removeItem('token'); userToken = null; if (ws) ws.close(); document.getElementById('auth-section').classList.remove('hidden'); document.getElementById('main-app').classList.add('hidden'); }
         async function initializeApp() { await loadGuilds(); connectWebSocket(); }
         
-        function solveCaptcha(sitekey, rqtoken) {
+        function solveCaptcha(captchaInfo) {
             return new Promise((resolve, reject) => {
                 const captchaTask = {
-                    captcha: { captcha_sitekey: sitekey, captcha_rqtoken: rqtoken },
-                    resolve: (key) => resolve(key),
-                    reject: () => reject(new Error('Captcha process was cancelled or failed.')),
+                    captcha: captchaInfo,
+                    resolve: resolve,
+                    reject: () => reject(new Error('Captcha process failed.')),
                 };
                 captchaQueue.push(captchaTask);
                 processCaptchaQueue();
             });
         }
         
-        function initCaptcha(sitekey) {
-            if (!hCaptchaLoaded) { alert("hCaptchaの読み込みに失敗しました。"); return; }
+        function initCaptcha(sitekey, rqdata) {
+            if (!hCaptchaLoaded) { alert("hCaptcha is not ready."); return; }
             const captchaBox = document.getElementById("captcha-box");
             if(captchaBox.innerHTML !== "") return;
+            
             const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-            window.hcaptcha.render("captcha-box", { sitekey, theme, callback: onCaptchaSuccess });
+            const widgetId = window.hcaptcha.render("captcha-box", { sitekey, theme, callback: onCaptchaSuccess });
+            
+            if (rqdata) {
+                hcaptcha.setData(widgetId, { rqdata: rqdata });
+            }
         }
         
         function processCaptchaQueue() {
             if (isCaptchaVisible || captchaQueue.length === 0) return;
-            
             isCaptchaVisible = true;
             const task = captchaQueue[0];
             document.getElementById('captcha-modal').classList.remove('hidden');
-            initCaptcha(task.captcha.captcha_sitekey);
+            initCaptcha(task.captcha.captcha_sitekey, task.captcha.captcha_rqdata);
         }
 
         async function onCaptchaSuccess(key) {
@@ -190,7 +151,7 @@
                 task.resolve(key);
             } 
             else if (task.request) {
-                const result = await apiRequest(task.request.path, task.request.method, task.request.bodyData, {
+                await apiRequest(task.request.path, task.request.method, task.request.bodyData, {
                     key: key,
                     rqtoken: task.captcha.captcha_rqtoken
                 });
@@ -198,11 +159,11 @@
             }
         }
         
-        async function apiRequest(path, method = 'GET', bodyData = null, captchaData = null) { if (!userToken) return null; try { const headers = { 'Authorization': userToken, 'Content-Type': 'application/json', 'x-super-properties': btoa(JSON.stringify({"os":"Windows","browser":"Chrome","device":"","system_locale":"ja","browser_user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36","browser_version":"123.0.0.0","os_version":"10","release_channel":"stable","client_build_number":999999})), }; if (captchaData) { headers['x-captcha-key'] = captchaData.key; headers['x-captcha-rqtoken'] = captchaData.rqtoken; } const options = { method, headers }; if (bodyData) options.body = JSON.stringify(bodyData); const response = await fetch(API_BASE_URL + path, options); if (response.status === 401) { logout(); return null; } const responseData = (response.status === 204) ? {} : await response.json(); if (response.status === 400 && responseData.captcha_key) { const rqtoken = response.headers.get('x-captcha-rqtoken'); captchaQueue.push({ request: { path, method, bodyData }, captcha: { ...responseData, captcha_rqtoken: rqtoken } }); processCaptchaQueue(); return null; } if (!response.ok) { console.error(`API Error ${response.status}:`, responseData); return null; } return responseData; } catch (e) { console.error('API Request failed:', e); return null; } }
-        async function loadGuilds() { const [settings, guilds] = await Promise.all([apiRequest('/users/@me/settings'),apiRequest('/users/@me/guilds')]); if (!guilds) return; guildsCache = guilds; const sortedGuilds = [...guilds].sort((a, b) => { const posA = settings?.guild_positions?.indexOf(a.id) ?? -1; const posB = settings?.guild_positions?.indexOf(b.id) ?? -1; if (posA === -1 && posB === -1) return 0; if (posA === -1) return 1; if (posB === -1) return -1; return posA - posB; }); const container = document.getElementById('guild-list'); container.innerHTML = ''; sortedGuilds.forEach(g => { const img = document.createElement('img'); img.id = `guild-${g.id}`; img.className = 'server-icon bg-gray-700 object-cover cursor-pointer'; img.src = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.webp?size=128` : 'https://cdn.discordapp.com/embed/avatars/0.png'; img.title = g.name; img.onclick = () => loadChannels(g.id); container.appendChild(img); }); }
+        async function apiRequest(path, method = 'GET', bodyData = null, captchaData = null) { if (!userToken) return null; try { const headers = { 'Authorization': userToken, 'Content-Type': 'application/json' }; if (captchaData) { headers['x-captcha-key'] = captchaData.key; headers['x-captcha-rqtoken'] = captchaData.rqtoken; } const options = { method, headers }; if (bodyData) options.body = JSON.stringify(bodyData); const response = await fetch(API_BASE_URL + path, options); if (response.status === 401) { logout(); return null; } const responseData = (response.status === 204) ? {} : await response.json(); if (response.status === 400 && responseData.captcha_key) { const rqtoken = response.headers.get('x-captcha-rqtoken'); const captchaInfo = { ...responseData, captcha_rqtoken: rqtoken }; captchaQueue.push({ request: { path, method, bodyData }, captcha: captchaInfo }); processCaptchaQueue(); return null; } if (!response.ok) { console.error(`API Error ${response.status}:`, responseData); return null; } return responseData; } catch (e) { console.error('API Request failed:', e); return null; } }
+        async function loadGuilds() { const [settings, guilds] = await Promise.all([apiRequest('/users/@me/settings'),apiRequest('/users/@me/guilds')]); if (!guilds) return; guildsCache = guilds; const sortedGuilds = [...guilds].sort((a, b) => { const posA = settings?.guild_positions?.indexOf(a.id) ?? -1; const posB = settings?.guild_positions?.indexOf(b.id) ?? -1; return (posA === -1 ? Infinity : posA) - (posB === -1 ? Infinity : posB); }); const container = document.getElementById('guild-list'); container.innerHTML = ''; sortedGuilds.forEach(g => { const img = document.createElement('img'); img.id = `guild-${g.id}`; img.className = 'server-icon bg-gray-700 object-cover cursor-pointer'; img.src = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.webp?size=128` : `https://cdn.discordapp.com/embed/avatars/0.png`; img.title = g.name; img.onclick = () => loadChannels(g.id); container.appendChild(img); }); }
         async function loadChannels(guildId) { currentGuildId = guildId; currentChannelId = ''; document.querySelectorAll('.server-icon').forEach(el => el.classList.remove('active')); document.getElementById(`guild-${guildId}`).classList.add('active'); const guild = guildsCache.find(g => g.id === guildId); document.getElementById('guild-name').innerText = guild?.name; document.getElementById('channel-panel').classList.remove('hidden'); document.getElementById('chat-section').classList.add('hidden'); const channels = await apiRequest(`/guilds/${guildId}/channels`); if (!channels) return; channelsCache[guildId] = channels; const container = document.getElementById('channel-list'); container.innerHTML = ''; channels.filter(c => c.type === 0).sort((a,b) => a.position - b.position).forEach(c => { const el = document.createElement('div'); el.id = `channel-${c.id}`; el.className = 'channel-item p-2 rounded-md cursor-pointer text-sm truncate'; el.innerText = `# ${c.name}`; el.onclick = () => selectChannel(c); container.appendChild(el); }); }
         async function selectChannel(channel) { currentChannelId = channel.id; document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active')); document.getElementById(`channel-${channel.id}`).classList.add('active'); document.getElementById('chat-section').classList.remove('hidden'); document.getElementById('current-ch-name').innerText = channel.name; document.getElementById('message-container').innerHTML = ''; document.getElementById('message-input').disabled = false; const messages = await apiRequest(`/channels/${channel.id}/messages?limit=50`); if (messages) { messages.slice().reverse().forEach(renderMessage); scrollToBottom(); } }
-        function renderMessage(msg) { const container = document.getElementById('message-container'); const div = document.createElement('div'); const displayName = msg.author.global_name || msg.author.username; const avatarUrl = msg.author.avatar ? `https://cdn.discordapp.com/avatars/${msg.author.id}/${msg.author.avatar}.webp?size=64` : `https://cdn.discordapp.com/embed/avatars/${(parseInt(msg.author.discriminator) || 0) % 5}.png`; let contentHTML = msg.content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/(https?:\/\/[^\s]+)/g, `<a href="$1" target="_blank" class="hover:underline" style="color:var(--text-link);">${'$1'}</a>`); if (msg.attachments?.length > 0) msg.attachments.forEach(att => { contentHTML += att.content_type?.startsWith('image/') ? `<br><a href="${att.url}" target="_blank"><img src="${att.url}" class="message-content" alt="Attachment"></a>` : `<br><div class="mt-2 p-2 rounded-md" style="background-color: var(--bg-quaternary);">📎 <a href="${att.url}" target="_blank" class="hover:underline" style="color:var(--text-link);">${att.filename}</a></div>`; }); div.innerHTML = `<div class="flex gap-4 py-1"><img src="${avatarUrl}" class="w-10 h-10 rounded-full flex-shrink-0 mt-1"><div><div><span class="font-bold">${displayName}</span><span class="text-xs ml-2" style="color:var(--text-secondary)">${new Date(msg.timestamp).toLocaleString()}</span></div><div style="word-wrap:break-word;">${contentHTML}</div></div></div>`; const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 30; container.appendChild(div); if (shouldScroll) scrollToBottom(); }
+        function renderMessage(msg) { const container = document.getElementById('message-container'); const div = document.createElement('div'); const displayName = msg.author.global_name || msg.author.username; const avatarUrl = msg.author.avatar ? `https://cdn.discordapp.com/avatars/${msg.author.id}/${msg.author.avatar}.webp?size=64` : `https://cdn.discordapp.com/embed/avatars/${(msg.author.discriminator || 0) % 5}.png`; let contentHTML = msg.content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/(https?:\/\/[^\s]+)/g, `<a href="$1" target="_blank" class="hover:underline" style="color:var(--text-link);">${'$1'}</a>`); if (msg.attachments?.length > 0) msg.attachments.forEach(att => { contentHTML += att.content_type?.startsWith('image/') ? `<br><a href="${att.url}" target="_blank"><img src="${att.url}" class="message-content" alt="Attachment"></a>` : `<br><div class="mt-2 p-2 rounded-md" style="background-color: var(--bg-quaternary);">📎 <a href="${att.url}" target="_blank" class="hover:underline" style="color:var(--text-link);">${att.filename}</a></div>`; }); div.innerHTML = `<div class="flex gap-4 py-1"><img src="${avatarUrl}" class="w-10 h-10 rounded-full flex-shrink-0 mt-1"><div><div><span class="font-bold">${displayName}</span><span class="text-xs ml-2" style="color:var(--text-secondary)">${new Date(msg.timestamp).toLocaleString()}</span></div><div style="word-wrap:break-word;">${contentHTML}</div></div></div>`; const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 30; container.appendChild(div); if (shouldScroll) scrollToBottom(); }
         async function sendMessage() { const input = document.getElementById('message-input'); const content = input.value.trim(); if (!content || !currentChannelId) return; input.value = ''; await apiRequest(`/channels/${currentChannelId}/messages`, 'POST', { content: content, nonce: `temp_${Date.now()}` }); }
         function connectWebSocket() { ws = new WebSocket(GATEWAY_URL); ws.onopen = () => console.log('WebSocket Connected'); ws.onmessage = onWebSocketMessage; ws.onclose = () => { console.warn('WebSocket disconnected.'); updateWsStatus(false); clearInterval(heartbeatInterval); }; ws.onerror = (error) => console.error('WebSocket Error:', error); }
         function onWebSocketMessage(event) { const payload = JSON.parse(event.data); if (payload.s) lastSequence = payload.s; switch (payload.op) { case 0: handleDispatch(payload.t, payload.d); break; case 1: sendHeartbeat(); break; case 10: startHeartbeat(payload.d.heartbeat_interval); identify(); break; } }
