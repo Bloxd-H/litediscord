@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Expose-Headers', 'X-Captcha-Rqtoken');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Captcha-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Captcha-Key, X-Captcha-Rqtoken');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -18,6 +18,7 @@ export default async function handler(req, res) {
 
   try {
     const { login, password, captcha_key, captcha_rqtoken } = req.body;
+
     if (!login || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
@@ -34,7 +35,7 @@ export default async function handler(req, res) {
     if (captcha_key) {
       headers["X-Captcha-Key"] = captcha_key;
     }
-     if (captcha_rqtoken) {
+    if (captcha_rqtoken) {
       headers["X-Captcha-Rqtoken"] = captcha_rqtoken;
     }
 
@@ -51,9 +52,10 @@ export default async function handler(req, res) {
     });
 
     const data = await discordRes.json();
-    const rqtoken = discordRes.headers.get('x-captcha-rqtoken');
-    if (rqtoken) {
-      res.setHeader('X-Captcha-Rqtoken', rqtoken);
+    
+    const newRqtoken = discordRes.headers.get('x-captcha-rqtoken');
+    if (newRqtoken) {
+      res.setHeader('X-Captcha-Rqtoken', newRqtoken);
     }
     
     res.status(discordRes.status).json(data);
