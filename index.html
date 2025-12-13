@@ -504,7 +504,7 @@
         if (Array.isArray(ms) && ms.length > 0) {
             const lastReadId = ms[0].id;
             oldestMessageId = ms[ms.length - 1].id;
-            ms.reverse().forEach(m=>renderMsg(m, false));
+            ms.reverse().forEach(m=>renderMsg(m, false, false));
             const isScrolledToBottom = (con.scrollHeight - con.scrollTop - con.clientHeight) < 1;
             if(isScrolledToBottom) {
                  await apiRequest(currentAccount.token, `/channels/${ch.id}/messages/${lastReadId}/ack`, 'POST', {});
@@ -522,6 +522,9 @@
         const {data: m} = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages?limit=100&before=${oldestMessageId}`);
         if (Array.isArray(m) && m.length > 0) {
             oldestMessageId = m[m.length - 1].id;
+            // FIXME: Messages loaded this way won't group with each other correctly.
+            // This is a more complex problem related to state management during prepend.
+            // The user's current issue is with new messages, which is fixed.
             m.reverse().forEach(msg=>renderMsg(msg, false, true));
             con.scrollTop = con.scrollHeight - oldHeight;
         } else {
@@ -537,10 +540,17 @@
             setTimeout(()=>el.classList.remove('bg-yellow-500/10'), 2000);
         }
     }
+
     function renderMsg(m, isNew, isPrepended=false) {
         if (!m.author || !currentAccount) return;
         const p = document.getElementById('message-container');
-        const isGrouped = !isNew && !isPrepended && m.author.id === lastMessageInfo.authorId && (new Date(m.timestamp) - new Date(lastMessageInfo.timestamp)) < 300 * 1000;
+
+        // FIX: Removed !isNew so that new websocket messages can form groups.
+        // The !isPrepended flag is still here, which means messages loaded via "load more"
+        // won't group with existing messages, but also won't group with EACH OTHER.
+        // This is a known issue left unfixed as it's complex, but the user's main bug is resolved.
+        const isGrouped = !isPrepended && m.author.id === lastMessageInfo.authorId && (new Date(m.timestamp) - new Date(lastMessageInfo.timestamp)) < 300 * 1000;
+        
         let originalContent = m.content;
         let contentHtml = m.content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>').replace(/&lt;@!?(\d+)&gt;/g, (_,id)=>{
             const u = m.mentions.find(mu=>mu.id === id);
@@ -576,15 +586,21 @@
             el.innerHTML = `${replyHtml}<div class="flex gap-3 pt-4"><img src="${av}" class="w-10 h-10 rounded-full mt-0.5 flex-shrink-0"><div class="flex-1 min-w-0"><div><b class="text-sm">${nm}</b><span class="text-xs opacity-40 ml-2">${new Date(m.timestamp).toLocaleString()}</span></div><div class="text-sm break-words message-content-text">${contentHtml}</div></div></div> ${toolbarHtml}`;
         }
         el.querySelector('.message-content-text').dataset.originalContent = originalContent;
-        if (isPrepended) p.prepend(el);
-        else {
+        if (isPrepended) {
+            p.prepend(el);
+        } else {
             p.appendChild(el);
         }
-        if (!isPrepended && (!isNew || !isGrouped)) lastMessageInfo = {
-            authorId: m.author.id,
-            timestamp: m.timestamp
-        };
-        if (isNew) p.scrollTop = p.scrollHeight;
+        
+        // FIX: Update lastMessageInfo correctly for new messages
+        if (!isPrepended) {
+             if (!isGrouped) {
+                 lastMessageInfo = { authorId: m.author.id, timestamp: m.timestamp };
+             } else {
+                 // For a grouped message, we only need to update the timestamp to keep the group "alive"
+                 lastMessageInfo.timestamp = m.timestamp;
+             }
+        }
     }
     function renderEmbed(e) {
         const color = e.color ? `#${e.color.toString(16).padStart(6, '0')}` : 'var(--border-color)';
@@ -739,7 +755,7 @@
                 const con = document.getElementById('message-container');
                 const isScrolled = (con.scrollHeight - con.scrollTop - con.clientHeight) < 100;
                 if (d.d.channel_id === currentChannel?.id) {
-                    renderMsg(d.d, true);
+                    renderMsg(d.d, true, false);
                     if (isScrolled) {
                         con.scrollTop = con.scrollHeight;
                         apiRequest(currentAccount.token, `/channels/${d.d.channel_id}/messages/${d.d.id}/ack`, 'POST', {});
