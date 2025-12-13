@@ -34,9 +34,9 @@
     <div id="auth-section" class="w-full max-w-md mx-auto my-auto p-8 rounded-lg shadow-xl" style="background-color: var(--bg-secondary);">
         <h1 class="text-2xl font-bold text-center mb-2">Welcome Back!</h1>
         <div id="login-error" class="text-red-500 text-xs mb-3 text-center"></div>
-        <form id="login-form" class="space-y-4">
+        <form id="login-form" class="space-y-4" onsubmit="return false;">
             <input type="password" id="token-input" class="input-field w-full p-2.5 rounded-md" placeholder="Discord Token">
-            <button type="submit" id="login-button" class="bg-blue-600 hover:bg-blue-700 w-full py-3 rounded-md font-bold text-white flex justify-center items-center">
+            <button type="button" id="login-button" class="bg-blue-600 hover:bg-blue-700 w-full py-3 rounded-md font-bold text-white flex justify-center items-center">
                 <span id="login-button-text">Login</span>
                 <div id="login-spinner" class="loader hidden"></div>
             </button>
@@ -574,33 +574,37 @@
             };
         }
         
-        document.getElementById('login-form').onsubmit = (e) => {
-            e.preventDefault();
-            loginWithToken(document.getElementById('token-input').value);
-        };
-        
-        document.getElementById('dm-icon').onclick = loadDms;
-        document.getElementById('send-button').onclick = sendMessage;
-        document.getElementById('cancel-reply-btn').onclick = cancelReply;
-        document.getElementById('logout-btn').onclick = logout;
-        themeToggleButton.addEventListener('click', toggleTheme);
-        
-        document.getElementById('message-input').onkeypress = (e) => {
-            if(e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        };
-        
-        document.getElementById('message-input').addEventListener('input', e => {
-            document.getElementById('send-button').disabled = e.target.value.trim() === '';
-        });
-        
         document.addEventListener('DOMContentLoaded', () => {
             applyTheme();
             const savedToken = localStorage.getItem('token');
-            if(savedToken && savedToken.trim() !== '') {
+            if (savedToken && savedToken.trim() !== '') {
                 loginWithToken(savedToken);
             }
+            
+            // Setup all event listeners here to ensure elements exist
+            document.getElementById('login-button').onclick = () => {
+                loginWithToken(document.getElementById('token-input').value);
+            };
+            
+            document.getElementById('dm-icon').onclick = loadDms;
+            document.getElementById('send-button').onclick = sendMessage;
+            document.getElementById('cancel-reply-btn').onclick = cancelReply;
+            document.getElementById('logout-btn').onclick = logout;
+            themeToggleButton.addEventListener('click', toggleTheme);
+            
+            document.getElementById('message-input').onkeypress = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            };
+            
+            document.getElementById('message-input').addEventListener('input', e => {
+                document.getElementById('send-button').disabled = e.target.value.trim() === '';
+            });
+
             document.getElementById('send-button').disabled = true;
         });
+    </script>
+</body>
+</html>
