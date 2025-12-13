@@ -186,8 +186,6 @@
         }
         
         themeToggleButton.addEventListener('click', toggleTheme);
-
-        // --- Stable UI and Message Functions from previous working version ---
         
         async function selectChannel(ch) {if(currentChannelId===ch.id)return;currentChannelId=ch.id;oldestMessageId=null;lastMessageInfo={authorId:null,timestamp:null};cancelReply();document.querySelectorAll('.channel-item.active').forEach(e=>e.classList.remove('active'));document.getElementById(`channel-${ch.id}`)?.classList.add('active');const t=document.getElementById('chat-section');t.classList.remove('hidden');let e=ch.name||(ch.recipients?.[0]?.global_name||ch.recipients?.[0]?.username||'DM');document.getElementById('current-ch-name').innerHTML=`<span class="text-gray-500 mr-1 text-lg">#</span><span class="truncate">${e}</span>`;const n=document.getElementById('message-container');n.innerHTML='<div class="text-center text-xs opacity-50 m-auto">Loading history...</div>';const o=await apiRequest(`/channels/${ch.id}/messages?limit=50`);n.innerHTML='';if(Array.isArray(o)&&o.length>0){if(o.length===50){showLoadMoreButton();oldestMessageId=o[o.length-1].id}else{oldestMessageId=null}o.reverse().forEach(t=>renderMsg(t,false,false));scrollToBottom()}}
         function showLoadMoreButton(){const t=document.getElementById('message-container');document.getElementById('load-more-container')?.remove();const e=document.createElement('div');e.id='load-more-container';e.className='text-center py-4';e.innerHTML=`<button id="load-more-btn" class="text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Load Older Messages</button>`;t.prepend(e);document.getElementById('load-more-btn').onclick=loadMoreMessages}
@@ -202,6 +200,53 @@
         function startReply(t){replyingTo={messageId:t.id,authorName:t.author.global_name||t.author.username};document.getElementById('reply-bar').classList.remove('hidden');document.getElementById('reply-username').innerText=`@${replyingTo.authorName}`;document.getElementById('message-input').focus()}
         function cancelReply(){replyingTo=null;document.getElementById('reply-bar').classList.add('hidden')}
         async function sendMessage(){const t=document.getElementById('message-input'),e=t.value.trim();if(!e||!currentChannelId)return;const n={content:e,nonce:Date.now().toString()};if(replyingTo)n.message_reference={message_id:replyingTo.messageId,channel_id:currentChannelId};t.value='';t.dispatchEvent(new Event('input'));cancelReply();apiRequest(`/channels/${currentChannelId}/messages`,'POST',n)}
+        function updateMessage(messageData) {
+            const messageEl = document.getElementById(`message-${messageData.id}`);
+            if (!messageEl) return;
+            const contentEl = messageEl.querySelector('.text-sm.break-words');
+            if (contentEl && messageData.content) {
+                 let newContent = messageData.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/(\r\n|\n|\r)/g, '<br>')
+                    .replace(/&lt;a?:(\w+):(\d+)&gt;/g, (_, name, id) => `<img src="https://cdn.discordapp.com/emojis/${id}.png" alt=":${name}:" class="inline h-6 w-6 mx-0.5">`);
+                contentEl.innerHTML = newContent;
+            }
+            let timestampEl = messageEl.querySelector('.text-xs.opacity-40');
+            if(timestampEl && !timestampEl.textContent.includes('(edited)')) {
+                 const editedSpan = document.createElement('span');
+                 editedSpan.textContent = ' (edited)';
+                 editedSpan.className = 'opacity-60';
+                 timestampEl.appendChild(editedSpan);
+            }
+}
+        function updateReactions(reactionData) {
+             const messageEl = document.getElementById(`message-${reactionData.message_id}`);
+             if (!messageEl) return;
+             apiRequest(`/channels/${reactionData.channel_id}/messages/${reactionData.message_id}`).then(msg => {
+                let reactionsHtml = '';
+                if (msg.reactions && msg.reactions.length > 0) {
+                    reactionsHtml = '<div class="flex flex-wrap gap-1 mt-1">';
+                    msg.reactions.forEach(reaction => {
+                        const emojiHtml = reaction.emoji.id ?
+                            `<img src="https://cdn.discordapp.com/emojis/${reaction.emoji.id}.png" class="w-4 h-4">` :
+                            `<span>${reaction.emoji.name}</span>`;
+                        reactionsHtml += `<div class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style="background-color: var(--bg-quaternary);">${emojiHtml} <span class="font-semibold">${reaction.count}</span></div>`;
+                    });
+                    reactionsHtml += '</div>';
+                }
+
+                let reactionContainer = messageEl.querySelector('.flex-wrap.gap-1.mt-1');
+                if (reactionContainer) {
+                    if (reactionsHtml) {
+                        reactionContainer.outerHTML = reactionsHtml;
+                    } else {
+                        reactionContainer.remove();
+                    }
+                } else if(reactionsHtml) {
+                     const contentEl = messageEl.querySelector('.text-sm.break-words');
+                     if(contentEl) contentEl.insertAdjacentHTML('afterend', reactionsHtml);
+                }
+             });
+        }
         function connectWS(){if(ws)ws.close();ws=new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json');ws.onmessage=t=>{const e=JSON.parse(t.data);if(e.s)lastSequence=e.s;if(e.op===10){if(heartbeatInterval)clearInterval(heartbeatInterval);heartbeatInterval=setInterval(()=>ws.send(JSON.stringify({op:1,d:lastSequence})),e.d.heartbeat_interval);ws.send(JSON.stringify({op:2,d:{token:userToken,properties:{os:"windows",browser:"chrome",device:""}}))}else if(e.t==='READY')document.getElementById('ws-status').classList.replace('bg-gray-500','bg-green-500');else if(e.t==='MESSAGE_CREATE'&&e.d.channel_id===currentChannelId){renderMsg(e.d,true,false)}else if(e.t==='MESSAGE_UPDATE'&&e.d.channel_id===currentChannelId){updateMessage(e.d)}};ws.onclose=()=>{document.getElementById('ws-status').classList.replace('bg-green-500','bg-red-500');if(heartbeatInterval)clearInterval(heartbeatInterval);setTimeout(connectWS,5000)};ws.onerror=t=>{console.error('WS Error:',t);ws.close()}}
 
         
