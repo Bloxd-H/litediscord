@@ -5,7 +5,7 @@
         --bg-quaternary: #ebebeb;
         --text-primary: #111111;
         --text-secondary: #555555;
-        --text-link: #4f89e2; /* 青色に戻しました */
+        --text-link: #00b0f4;
         --border-color: #cccccc;
         --button-bg: #5865f2;
         --button-text: #fff;
@@ -13,15 +13,11 @@
         --active-bg: #e0e0e0;
         --mention-bg: rgba(88, 101, 242, 0.1);
         --mention-fg: #5865f2;
-        --system-bg: rgba(88, 166, 255, 0.1);
-        
-        /* 新機能用の変数は維持 */
         --mention-bg-highlight: rgba(250, 233, 105, 0.1);
         --mention-border-highlight: #faa81a;
         --error-bg: rgba(240, 71, 71, 0.05);
         --error-border: #f04747;
         --code-bg: #e3e5e8;
-        --ping-border: #ffffff;
     }
 
     html.dark {
@@ -29,9 +25,9 @@
         --bg-secondary: #2f3136;
         --bg-tertiary: #202225;
         --bg-quaternary: #292b2f;
-        --text-primary: #e0e0e0; /* 元の色に戻しました */
+        --text-primary: #dcddde;
         --text-secondary: #b9bbbe;
-        --text-link: #58a6ff; /* 元の色に戻しました */
+        --text-link: #00b0f4;
         --border-color: #40444b;
         --button-bg: #5865f2;
         --button-text: #ffffff;
@@ -39,13 +35,9 @@
         --active-bg: #40444b;
         --mention-bg: rgba(88, 101, 242, 0.15);
         --mention-fg: #7289da;
-        --system-bg: rgba(88, 166, 255, 0.1);
-        
-        /* 新機能用の変数は維持 */
         --mention-bg-highlight: rgba(250, 233, 105, 0.05);
         --error-bg: rgba(240, 71, 71, 0.1);
         --code-bg: #2f3136;
-        --ping-border: #202225;
     }
 
     html.dark .input-field {
@@ -56,37 +48,41 @@
         position: relative;
     }
 
-    /* サーバーアイコンのサイズ崩れを防止 */
+    /* サーバーアイコンサイズを絶対厳守 */
     .server-icon {
-        width: 48px;
-        height: 48px;
-        min-width: 48px;
-        min-height: 48px;
-        flex-shrink: 0;
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
+        border-radius: 50% !important; /* 強制的に丸くする */
+        overflow: hidden;
+        cursor: pointer;
+        transition: border-radius 0.2s ease;
+    }
+    
+    .server-icon:hover, .server-icon.active {
+        border-radius: 16px !important; /* ホバー/選択時のみ少し四角く */
     }
 
-    .server-icon.active img, .server-icon.active div {
-        border-radius: 1rem; /* 以前の少し四角い形状 */
-        transition: border-radius 0.2s ease-in-out;
-    }
-
+    /* Pingバッジ修正: 視認性を保ちつつシンプルに */
     .ping-dot {
         position: absolute;
         bottom: -2px;
         right: -2px;
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         background-color: #f23f43;
         border-radius: 50%;
-        border: 3px solid var(--ping-border);
+        border: 2px solid var(--bg-tertiary);
         z-index: 10;
+        pointer-events: none;
     }
 
     .channel-item .ping-dot {
         bottom: 8px;
         right: 8px;
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
         border: none;
     }
 
@@ -103,10 +99,7 @@
         animation: spin 1s linear infinite;
     }
 
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: var(--bg-secondary); }
@@ -122,46 +115,41 @@
         cursor: pointer;
     }
 
-    .message-group:hover .message-toolbar {
-        visibility: visible;
-        opacity: 1;
-    }
+    .message-group:hover .message-toolbar { visibility: visible; opacity: 1; }
+    .message-toolbar { visibility: hidden; opacity: 0; transition: opacity 0.1s ease-in-out; }
 
-    .message-toolbar {
-        visibility: hidden;
-        opacity: 0;
-        transition: opacity 0.1s ease-in-out;
-    }
-
+    /* メッセージハイライト */
     .message-group.mention-highlight {
         background-color: var(--mention-bg-highlight);
+        position: relative;
     }
     .message-group.mention-highlight::before {
         content: '';
         position: absolute;
         left: 0;
         top: 0;
+        bottom: 0;
         width: 2px;
-        height: 100%;
         background-color: var(--mention-border-highlight);
     }
     
+    /* エラーメッセージ */
     .system-message {
-        position: relative;
         background-color: var(--error-bg);
         padding: 8px 16px;
+        position: relative;
     }
     .system-message::before {
         content: '';
         position: absolute;
         left: 0;
         top: 0;
+        bottom: 0;
         width: 2px;
-        height: 100%;
         background-color: var(--error-border);
     }
 
-    /* Markdown Styles */
+    /* Markdown */
     .md-code-block {
         background-color: var(--code-bg);
         font-family: Consolas, monospace;
@@ -183,8 +171,8 @@
         border-left: 4px solid var(--border-color);
         padding-left: 8px;
         margin: 4px 0;
-        opacity: 0.9;
+        opacity: 0.75;
     }
-    .md-header-1 { font-size: 1.5em; font-weight: bold; margin-top: 0.5em; }
-    .md-header-2 { font-size: 1.25em; font-weight: bold; margin-top: 0.4em; }
-    .md-header-3 { font-size: 1.1em; font-weight: bold; margin-top: 0.3em; }
+    .md-header-1 { font-size: 1.5em; font-weight: bold; margin: 0.5em 0; }
+    .md-header-2 { font-size: 1.25em; font-weight: bold; margin: 0.4em 0; }
+    .md-header-3 { font-size: 1.1em; font-weight: bold; margin: 0.3em 0; }
