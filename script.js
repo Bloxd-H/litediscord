@@ -101,7 +101,28 @@
         }).join('');
     }
 
-    async function loadGuilds() { if (!currentAccount) return; const { data: g } = await apiRequest(currentAccount.token, '/users/@me/guilds'); if (!g) return; const l = document.getElementById('guild-list'); l.innerHTML = ''; g.forEach(s => { let el = document.createElement('div'); el.id = `guild-${s.id}`; el.className = 'server-icon cursor-pointer'; el.title = s.name; el.onclick = () => loadChannels(s, el); if (s.icon) { el.innerHTML = `<img src="https://cdn.discordapp.com/icons/${s.id}/${s.icon}.png?size=128" class="object-cover w-full h-full rounded-full">` } else { el.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gray-700 text-white font-bold rounded-full">${s.name.replace(/[^\w\s]/gi, '').split(' ').map(w => w[0]).join('').substring(0, 2)}</div>` } l.appendChild(el); }); }
+    async function loadGuilds() {
+        if (!currentAccount) return;
+        const { data: g } = await apiRequest(currentAccount.token, '/users/@me/guilds');
+        if (!g) return;
+        const l = document.getElementById('guild-list');
+        l.innerHTML = '';
+        g.forEach(s => {
+            let el = document.createElement('div');
+            el.id = `guild-${s.id}`;
+            // w-12 h-12 (48px) を明示的に指定してサイズ崩れを防ぐ
+            el.className = 'server-icon cursor-pointer w-12 h-12';
+            el.title = s.name;
+            el.onclick = () => loadChannels(s, el);
+            if (s.icon) {
+                el.innerHTML = `<img src="https://cdn.discordapp.com/icons/${s.id}/${s.icon}.png?size=128" class="object-cover w-full h-full rounded-full">`
+            } else {
+                el.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gray-700 text-white font-bold rounded-full text-sm">${s.name.replace(/[^\w\s]/gi, '').split(' ').map(w => w[0]).join('').substring(0, 2)}</div>`
+            }
+            l.appendChild(el);
+        });
+    }
+
     async function loadChannels(g, t) { if (!currentAccount) return; document.querySelectorAll('.server-icon.active').forEach(e => e.classList.remove('active')); if (t) t.classList.add('active'); document.getElementById('guild-name').innerText = g.name; const { data: c } = await apiRequest(currentAccount.token, `/guilds/${g.id}/channels`); if (!c) return; const l = document.getElementById('channel-list'); l.innerHTML = ''; const p = c.reduce((a, ch) => { (a[ch.parent_id || 'null'] = a[ch.parent_id || 'null'] || []).push(ch); return a; }, {}); Object.values(p).forEach(a => a.sort((x, y) => x.position - y.position)); const r = ch => { if (ch.type !== 0 && ch.type !== 5 && ch.type !== 2) return; const d = document.createElement('div'); d.id = `channel-${ch.id}`; d.className = 'channel-item p-2 rounded cursor-pointer mb-1 text-sm truncate'; d.innerHTML = `<span>${ch.type === 2 ? '🔊' : '#'} ${ch.name}</span>`; if (ch.type !== 2) d.onclick = () => selectChannel(ch); else d.classList.add('opacity-50', 'cursor-not-allowed'); l.appendChild(d); }; (p['null'] || []).forEach(r); c.filter(i => i.type === 4).sort((x, y) => x.position - y.position).forEach(cat => { const h = document.createElement('div'); h.className = 'px-1 pt-4 pb-1 text-xs font-bold uppercase text-[var(--text-secondary)]'; h.innerText = cat.name; l.appendChild(h); (p[cat.id] || []).forEach(r); }); updatePingDots(); }
     async function loadDms(t) { if (!currentAccount) return; document.querySelectorAll('.server-icon.active').forEach(e => e.classList.remove('active')); if (t) t.classList.add('active'); document.getElementById('guild-name').innerText = 'Direct Messages'; const { data: d } = await apiRequest(currentAccount.token, '/users/@me/channels'); if (!d) return; const l = document.getElementById('channel-list'); l.innerHTML = ''; d.sort((a, b) => (b.last_message_id || '0').localeCompare(a.last_message_id || '0')).forEach(dm => { const recipient = dm.recipients?.[0] || {}; const name = dm.name || recipient.global_name || recipient.username || 'DM'; const avatar = recipient.avatar ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${recipient.discriminator % 5}.png`; const el = document.createElement('div'); el.id = `channel-${dm.id}`; el.className = 'channel-item p-2 rounded cursor-pointer mb-1 text-sm truncate flex items-center gap-3'; el.innerHTML = `<img src="${avatar}" class="w-8 h-8 rounded-full"> <span class="flex-1">${name}</span>`; el.onclick = () => selectChannel(dm); l.appendChild(el); }); updatePingDots(); }
 
@@ -130,7 +151,6 @@
         currentChannel = ch; oldestMessageId = null; lastMessageInfo = { authorId: null, timestamp: null }; isLoadingMore = false; availableCommands = [];
         cancelReply(); cancelAttachment();
         
-        // Clear ping immediately for this channel
         delete pingCounts[ch.id];
         updatePingDots();
 
@@ -168,79 +188,32 @@
         con.scrollTop = con.scrollHeight;
     }
 
-    // New Markdown Parser
     function parseMarkdown(text) {
         if (!text) return '';
-        
-        // 1. Escape HTML first
         let html = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-        // 2. Extract code blocks to prevent processing inside them
         const codeBlocks = [];
-        // Triple backticks
-        html = html.replace(/```(?:[\w]*\n)?([\s\S]*?)```/g, (match, code) => {
-            codeBlocks.push(`<span class="md-code-block">${code}</span>`);
-            return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
-        });
-        // Inline code
-        html = html.replace(/`([^`]+)`/g, (match, code) => {
-            codeBlocks.push(`<span class="md-inline-code">${code}</span>`);
-            return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
-        });
-
-        // 3. Process Markdown syntax
-        
-        // Markdown Links: [text](url) - Matches invisible chars too
+        html = html.replace(/```(?:[\w]*\n)?([\s\S]*?)```/g, (match, code) => { codeBlocks.push(`<span class="md-code-block">${code}</span>`); return `__CODE_BLOCK_${codeBlocks.length - 1}__`; });
+        html = html.replace(/`([^`]+)`/g, (match, code) => { codeBlocks.push(`<span class="md-inline-code">${code}</span>`); return `__CODE_BLOCK_${codeBlocks.length - 1}__`; });
         html = html.replace(/\[([^\]]*)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" class="text-[var(--text-link)] hover:underline">$1</a>');
-
-        // Headers
-        html = html.replace(/^### (.*$)/gm, '<div class="md-header-3">$1</div>');
-        html = html.replace(/^## (.*$)/gm, '<div class="md-header-2">$1</div>');
-        html = html.replace(/^# (.*$)/gm, '<div class="md-header-1">$1</div>');
-
-        // Blockquotes
-        html = html.replace(/^> (.*$)/gm, '<div class="md-quote">$1</div>');
-        html = html.replace(/^>>> ([\s\S]*)/gm, '<div class="md-quote">$1</div>'); // Simplified >>>
-
-        // Bold, Italic, Strike, Underline
-        html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-        html = html.replace(/\*(.*?)\*/g, '<i>$1</i>');
-        html = html.replace(/__(.*?)__/g, '<u>$1</u>');
-        html = html.replace(/~~(.*?)~~/g, '<s>$1</s>');
-
-        // 4. Auto-link URLs (that aren't already links)
-        // A bit complex regex to avoid replacing already linked stuff from step 3
+        html = html.replace(/^### (.*$)/gm, '<div class="md-header-3">$1</div>').replace(/^## (.*$)/gm, '<div class="md-header-2">$1</div>').replace(/^# (.*$)/gm, '<div class="md-header-1">$1</div>');
+        html = html.replace(/^> (.*$)/gm, '<div class="md-quote">$1</div>').replace(/^>>> ([\s\S]*)/gm, '<div class="md-quote">$1</div>');
+        html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/__(.*?)__/g, '<u>$1</u>').replace(/~~(.*?)~~/g, '<s>$1</s>');
         html = html.replace(/(?<!href="|">)(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" class="text-[var(--text-link)] hover:underline">$1</a>');
-
-        // 5. Mentions
-        html = html.replace(/&lt;@!?(\d+)&gt;/g, (_, id) => {
-            // This needs the mentions array from the message object, but simple lookup works for now
-            return `<span class="mention">@${id}</span>`;
-        });
-        
-        // 6. Custom Emojis
+        html = html.replace(/&lt;@!?(\d+)&gt;/g, (_, id) => `<span class="mention">@${id}</span>`);
         html = html.replace(/&lt;a?:(\w+):(\d+)&gt;/g, (_, n, i) => `<img src="https://cdn.discordapp.com/emojis/${i}.webp?size=48&quality=lossless" alt=":${n}:" class="inline h-6 w-6">`);
-
-        // 7. Newlines to br (only if not a header or quote which are block level)
         html = html.replace(/\n/g, '<br>');
-
-        // 8. Restore Code Blocks
         html = html.replace(/__CODE_BLOCK_(\d+)__/g, (match, index) => codeBlocks[index]);
-
         return html;
     }
 
     function createMessageElement(m, isGrouped) {
         let contentHtml = parseMarkdown(m.content);
-        
-        // Update mentions in the parsed HTML with proper names if available
         if (m.mentions) {
             m.mentions.forEach(u => {
                 const regex = new RegExp(`@${u.id}`, 'g');
                 contentHtml = contentHtml.replace(regex, `@${u.global_name || u.username}`);
             });
         }
-
         if (m.sticker_items) contentHtml += m.sticker_items.map(s=>`<img src="https://media.discordapp.net/stickers/${s.id}.webp?size=160" alt="${s.name}" class="w-32 h-32 mt-2"/>`).join('');
         if (m.attachments?.length > 0) contentHtml += m.attachments.map(a=>{ if (a.content_type?.startsWith('image')) return `<br><a href="${a.url}" target="_blank"><img src="${a.url}" class="max-w-xs cursor-pointer rounded-lg mt-2" style="display: block;"/></a>`; if (a.content_type?.startsWith('video')) return `<br><video src="${a.url}" controls playsinline muted class="max-w-xs rounded-lg mt-2"></video>`; return `<div class="mt-2 p-3 rounded-md text-[var(--text-primary)]" style="background-color:var(--bg-tertiary);"><a href="${a.url}" target="_blank" class="text-[var(--text-link)]">${a.filename}</a></div>` }).join(''); let replyPreviewHtml = ''; if (m.referenced_message) { const rm = m.referenced_message, rAuth = rm.author, rAuthName = rAuth.global_name || rAuth.username; const rCont = rm.content ? rm.content.substring(0, 100) : '添付ファイル'; const rAuthAvatar = rAuth.avatar ? `https://cdn.discordapp.com/avatars/${rAuth.id}/${rAuth.avatar}.png?size=32` : `https://cdn.discordapp.com/embed/avatars/${rAuth.discriminator % 5}.png`; replyPreviewHtml = `<div class="flex items-center ml-14 mb-1 cursor-pointer" onclick="scrollToMessage('${rm.id}')"><img src="${rAuthAvatar}" class="w-4 h-4 rounded-full mr-2"><b class="mr-2 text-sm text-[var(--text-link)]">${rAuthName}</b><span class="truncate text-xs opacity-70">${rCont}</span></div>`; } if (m.embeds?.length > 0) contentHtml += m.embeds.map(renderEmbed).join(''); const el = document.createElement('div'); el.id = `message-${m.id}`; el.className = "px-4 message-group relative"; const isAuthor = m.author.id === currentAccount.id; const isMentioned = m.mentions.some(user => user.id === currentAccount.id) || m.mention_everyone; const isReplyMention = m.type === 19 && m.referenced_message && m.referenced_message.author.id === currentAccount.id; if (!isAuthor && (isMentioned || isReplyMention)) el.classList.add('mention-highlight'); const toolbarHtml = `<div class="message-toolbar absolute -top-4 right-2 flex items-center gap-1 p-1 rounded-md shadow" style="background-color:var(--bg-secondary); color: var(--text-secondary);"> <button onclick='startReply(${JSON.stringify({id: m.id, author: m.author})})' title="Reply" class="p-1"><svg class="w-4 h-4" viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" fill="currentColor"/></svg></button> ${isAuthor ? `<button onclick='startEdit("${m.id}")' class="p-1" title="Edit"><svg class="w-4 h-4" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" fill="currentColor"></path></svg></button> <button onclick='deleteMessage("${m.id}")' class="p-1" title="Delete"><svg class="w-4 h-4" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" fill="currentColor"></path></svg></button>` : ''}</div>`; if (isGrouped) { el.innerHTML = `<div class="flex pl-14 pt-0.5"><div class="text-sm break-words message-content-text">${contentHtml}</div></div> ${toolbarHtml}`; } else { const displayName = m.author.global_name || m.author.username; const nm = `${displayName} <span class="text-xs opacity-60">(@${m.author.username})</span>`; const av = m.author.avatar ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${m.author.discriminator % 5}.png`; const replyLineHtml = m.referenced_message ? `<div class="absolute left-6 top-0 w-8 h-[24px] border-l-2 border-t-2 border-gray-400 dark:border-gray-600 rounded-tl-md"></div>` : ''; el.innerHTML = `${replyPreviewHtml}<div class="relative flex gap-3 pt-1">${replyLineHtml}<img src="${av}" class="w-10 h-10 rounded-full mt-0.5 flex-shrink-0"><div class="flex-1 min-w-0"><div><b class="text-sm">${nm}</b><span class="text-xs opacity-40 ml-2">${new Date(m.timestamp).toLocaleString()}</span></div><div class="text-sm break-words message-content-text">${contentHtml}</div></div></div> ${toolbarHtml}`; } el.querySelector('.message-content-text').dataset.originalContent = m.content; return el; }
     function renderMsg(m, options={}) { const { isNew = false, isPrepended = false } = options; if (!m.author || !currentAccount) return; const container = document.getElementById('message-container'); const isGrouped = !isPrepended && m.author.id === lastMessageInfo.authorId && (new Date(m.timestamp) - new Date(lastMessageInfo.timestamp)) < 300 * 1000; const el = createMessageElement(m, isGrouped); if (isPrepended) { container.prepend(el); } else { container.appendChild(el); lastMessageInfo = { authorId: m.author.id, timestamp: m.timestamp }; } }
