@@ -14,10 +14,8 @@
 </head>
 <body class="font-sans h-screen flex flex-col overflow-hidden bg-gray-200 dark:bg-gray-800 text-[var(--text-primary)]">
     
-    <!-- Settings Modal -->
     <div id="settings-modal" class="hidden fixed inset-0 bg-black/50 z-[100] flex justify-center items-center backdrop-blur-sm">
         <div class="bg-[var(--bg-secondary)] w-full max-w-3xl h-[85vh] rounded-lg shadow-2xl flex overflow-hidden scale-100 transition-transform">
-            <!-- Sidebar -->
             <div class="w-1/3 bg-[var(--bg-secondary)] p-0 flex flex-col border-r" style="border-color: var(--bg-tertiary);">
                 <div class="p-4 font-bold text-xs uppercase text-[var(--text-secondary)] mt-4 mb-2 pl-6">Settings</div>
                 <div class="px-2 space-y-1">
@@ -25,19 +23,16 @@
                     <div id="tab-btn-general" class="settings-tab-item" onclick="switchSettingsTab('general')">General</div>
                 </div>
             </div>
-            <!-- Content -->
             <div class="flex-1 p-8 overflow-y-auto bg-[var(--bg-primary)] relative">
                 <div class="absolute top-6 right-8 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]" onclick="document.getElementById('settings-modal').classList.add('hidden')">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </div>
                 
-                <!-- Plugins Tab -->
                 <div id="tab-content-plugins">
                     <h2 class="text-2xl font-bold mb-6">Plugins</h2>
                     <div id="plugin-list" class="space-y-4"></div>
                 </div>
 
-                <!-- General Tab -->
                 <div id="tab-content-general" class="hidden">
                     <h2 class="text-2xl font-bold mb-6">General</h2>
                     <h3 class="text-sm font-bold uppercase text-[var(--text-secondary)] mb-4">THEME</h3>
@@ -60,8 +55,7 @@
         </div>
     </div>
 
-    <!-- Auth Section -->
-    <div id="auth-section" class="w-full max-w-md m-auto p-8 rounded-lg shadow-xl flex-col bg-white dark:bg-gray-700 hidden">
+    <div id="auth-section" class="w-full max-w-md m-auto p-8 rounded-lg shadow-xl flex-col bg-white dark:bg-gray-700 hidden relative z-50">
         <div id="migration-view" class="hidden flex-col items-center justify-center mb-4">
             <div class="loader mb-2"></div>
             <div class="text-sm font-bold text-center">データを更新中...</div>
@@ -92,38 +86,33 @@
         </div>
     </div>
 
-    <!-- Main App -->
     <div id="main-app" class="hidden flex-1 flex-row min-h-0 relative">
-        <!-- Sidebar -->
         <div id="sidebar-view" class="flex flex-row w-full h-full md:w-auto md:flex">
-            <!-- Server Rail -->
-            <div class="p-3 flex flex-col items-center gap-2 overflow-y-auto flex-shrink-0 no-scrollbar" style="background-color: var(--bg-tertiary);">
+            <div class="p-3 flex flex-col items-center gap-2 overflow-y-auto flex-shrink-0" style="background-color: var(--bg-tertiary);">
                 <div id="dm-icon" title="DM" class="server-icon bg-indigo-600 flex items-center justify-center cursor-pointer text-white font-black text-xl mb-1 hover:bg-indigo-500 transition-all duration-200">DM</div>
                 <div class="w-8 h-[2px] rounded-lg bg-[var(--bg-quaternary)] my-1"></div>
                 <div id="guild-list" class="flex flex-col items-center gap-2 w-full pb-4"></div>
             </div>
             
-            <!-- Channel Sidebar -->
             <div class="w-full md:w-60 flex flex-col border-r flex-1 min-h-0 bg-[var(--bg-secondary)]" style="border-color: var(--bg-tertiary);">
                 <div class="h-12 p-3 border-b font-bold truncate flex items-center shadow-sm select-none hover:bg-[var(--hover-bg)] transition-colors cursor-pointer" id="guild-name" style="border-color: var(--bg-tertiary);"></div>
-                <div id="channel-list" class="flex-1 overflow-y-auto p-2 scrollbar-thin"></div>
+                <div id="channel-list" class="flex-1 overflow-y-auto p-2"></div>
                 
-                <!-- User Panel -->
                 <div class="relative flex-shrink-0 bg-[var(--bg-tertiary)]/80 backdrop-blur-md">
-                    <div id="user-info-panel" class="p-2 flex items-center gap-2">
-                        <div class="relative w-8 h-8 flex-shrink-0 group cursor-pointer" id="current-user-avatar-container" onclick="document.getElementById('account-switcher').classList.toggle('hidden')"></div>
+                    <div id="user-info-panel" class="p-2.5 flex items-center gap-2" style="height: 58px;">
+                        <div class="relative w-9 h-9 flex-shrink-0 group cursor-pointer" id="current-user-avatar-container" onclick="document.getElementById('account-switcher').classList.toggle('hidden')"></div>
                         <div class="flex-1 min-w-0 flex flex-col justify-center cursor-pointer select-none" onclick="document.getElementById('account-switcher').classList.toggle('hidden')">
                              <div class="text-sm font-bold truncate leading-tight" id="current-user-name"></div>
                              <div class="text-xs opacity-60 truncate leading-tight" id="current-user-subtext"></div>
                         </div>
                         <div class="flex items-center">
-                            <button id="open-settings-btn" class="p-1.5 hover:bg-[var(--active-bg)] rounded-md cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="ユーザー設定">
+                            <button id="open-settings-btn" class="p-2 hover:bg-[var(--active-bg)] rounded-md cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="ユーザー設定">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path></svg>
                             </button>
                         </div>
                     </div>
 
-                    <div id="account-switcher" class="hidden absolute bottom-full left-2 right-2 mb-2 rounded-lg shadow-xl overflow-hidden border z-50 bg-[var(--popup-bg)]" style="border-color: var(--border-color);">
+                    <div id="account-switcher" class="hidden absolute bottom-[110%] left-2 min-w-[240px] rounded-lg shadow-xl overflow-hidden border z-50 bg-[var(--popup-bg)]" style="border-color: var(--border-color);">
                         <div id="account-list" class="max-h-60 overflow-y-auto p-1 space-y-0.5"></div>
                         <div class="border-t p-1 mt-1" style="border-color: var(--border-color);">
                             <div id="add-account-switcher-btn" class="text-sm p-2 rounded cursor-pointer hover:bg-indigo-500 hover:text-white flex items-center gap-2 transition-colors">
@@ -136,7 +125,6 @@
             </div>
         </div>
 
-        <!-- Chat Section -->
         <div id="chat-section" class="hidden flex-1 md:flex flex-col min-h-0 min-w-0 bg-[var(--bg-primary)]">
             <div class="h-12 p-3 border-b flex items-center justify-between flex-shrink-0 shadow-sm" style="border-color: var(--bg-tertiary); background-color:var(--bg-secondary);">
                 <div class="font-bold flex items-center truncate">
@@ -158,7 +146,7 @@
                 </div>
                 
                 <div class="px-4 pb-4 pt-1 bg-[var(--bg-primary)]">
-                    <div class="flex items-start gap-2 bg-[var(--bg-tertiary)] p-2 rounded-xl relative transition-all" style="min-height: 44px;">
+                    <div class="flex items-start gap-2 bg-[var(--bg-tertiary)] p-2 rounded-lg relative transition-all shadow-sm" style="min-height: 44px;">
                         <input type="file" id="file-input" class="hidden" multiple>
                         
                         <button id="attach-button" class="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors mt-0.5" title="ファイルを添付">
@@ -175,14 +163,13 @@
                                 </button>
                             </div>
                             
-                            <textarea id="message-input" placeholder="メッセージを送信" class="input-field w-full bg-transparent p-2 text-[0.95rem] resize-none max-h-[50vh] focus:outline-none" rows="1"></textarea>
+                            <textarea id="message-input" placeholder="メッセージを送信" class="input-field w-full bg-transparent p-1.5 text-[0.95rem] resize-none max-h-[50vh] focus:outline-none min-h-[24px]" rows="1"></textarea>
+                            <div id="char-counter" class="absolute bottom-1 right-1 text-[10px] font-mono font-bold text-[var(--text-secondary)] opacity-0 pointer-events-none select-none"></div>
                         </div>
                         
                         <button id="send-button" class="p-2 rounded-lg text-[var(--button-bg)] hover:bg-[var(--hover-bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors self-end" disabled>
                             <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(0deg);"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                         </button>
-                        
-                        <div id="char-counter" class="absolute bottom-[-1.2rem] right-1 text-[10px] font-mono font-bold text-[var(--text-secondary)] opacity-0 transition-opacity"></div>
                     </div>
                 </div>
             </div>
