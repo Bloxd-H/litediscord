@@ -31,23 +31,23 @@
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </div>
                 
+                <!-- Plugins Tab -->
                 <div id="tab-content-plugins">
                     <h2 class="text-2xl font-bold mb-6">Plugins</h2>
                     <div id="plugin-list" class="space-y-4"></div>
                 </div>
 
+                <!-- General Tab -->
                 <div id="tab-content-general" class="hidden">
                     <h2 class="text-2xl font-bold mb-6">General</h2>
                     <h3 class="text-sm font-bold uppercase text-[var(--text-secondary)] mb-4">THEME</h3>
                     <div class="flex gap-4">
-                        <!-- Dark Theme Card -->
                         <div class="theme-card bg-[#2f3136]" onclick="setTheme('dark')">
                             <div class="theme-card-check" id="theme-check-dark">
                                 <svg class="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
                             </div>
                             <span class="text-white font-bold">Dark</span>
                         </div>
-                        <!-- Light Theme Card -->
                         <div class="theme-card bg-[#ffffff] border border-gray-300" onclick="setTheme('light')">
                             <div class="theme-card-check hidden" id="theme-check-light">
                                 <svg class="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
@@ -60,7 +60,7 @@
         </div>
     </div>
 
-    <!-- Auth Section (変更なし) -->
+    <!-- Auth Section -->
     <div id="auth-section" class="w-full max-w-md m-auto p-8 rounded-lg shadow-xl flex-col bg-white dark:bg-gray-700 hidden">
         <div id="migration-view" class="hidden flex-col items-center justify-center mb-4">
             <div class="loader mb-2"></div>
@@ -145,10 +145,6 @@
                     </button>
                     <span id="channel-name-text"></span>
                 </div>
-                <!-- Links -->
-                <div class="flex items-center gap-3 mr-2 text-[var(--text-secondary)]">
-                    <!-- Additional header icons can go here -->
-                </div>
             </div>
             
             <div id="message-container" class="flex-1 overflow-y-auto p-4 space-y-0" style="background-color: var(--bg-primary);"></div>
@@ -186,7 +182,6 @@
                             <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(0deg);"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                         </button>
                         
-                        <!-- Char Counter -->
                         <div id="char-counter" class="absolute bottom-[-1.2rem] right-1 text-[10px] font-mono font-bold text-[var(--text-secondary)] opacity-0 transition-opacity"></div>
                     </div>
                 </div>
