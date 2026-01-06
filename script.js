@@ -597,38 +597,48 @@ async function selectChannel(ch) {
 }
 
 function createMessageElement(m, isGrouped) {
+    // 1. メッセージ本文（テキスト）の構築
     let contentHtml = parseMarkdown(m.content);
-    
     if (m.mentions) {
         m.mentions.forEach(u => { 
             const name = u.global_name || u.username;
             contentHtml = contentHtml.replace(new RegExp(`<@!?${u.id}>`, 'g'), `<span class="mention">@${name}</span>`);
         });
     }
-
+    // スタンプも本文の一部として扱うが、ブロック要素にすることで分離
     if (m.sticker_items) {
         contentHtml += m.sticker_items.map(s => `<img src="https://media.discordapp.net/stickers/${s.id}.webp?size=160" class="w-32 h-32 mt-2 block"/>`).join('');
     }
+    
+    // 2. 付属品（添付ファイル・Embed）の構築 -> 変数を分ける
+    let accessoriesHtml = '';
     
     if (m.attachments?.length > 0) {
         m.attachments.forEach(a => {
             const isImg = a.content_type?.startsWith('image/');
             const isVid = a.content_type?.startsWith('video/');
             if(isImg) {
-                contentHtml += `<a href="${a.url}" target="_blank" class="block mt-1"><img src="${a.url}" class="max-w-[300px] max-h-[300px] rounded-lg bg-[var(--bg-tertiary)] object-contain"></a>`;
+                accessoriesHtml += `<a href="${a.url}" target="_blank" class="block mt-2"><img src="${a.url}" class="max-w-[300px] max-h-[300px] rounded-lg bg-[var(--bg-tertiary)] object-contain" style="display:block;"></a>`;
             } else if(isVid) {
-                contentHtml += `<video src="${a.url}" controls class="max-w-[300px] mt-2 rounded-lg bg-black block"></video>`;
+                accessoriesHtml += `<video src="${a.url}" controls class="max-w-[300px] mt-2 rounded-lg bg-black block"></video>`;
             } else {
-                contentHtml += `<div class="mt-2 p-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex items-center"><a href="${a.url}" target="_blank" class="text-[var(--text-link)] font-mono text-sm">${a.filename}</a></div>`;
+                accessoriesHtml += `<div class="mt-2 p-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex items-center"><a href="${a.url}" target="_blank" class="text-[var(--text-link)] font-mono text-sm">${a.filename}</a></div>`;
             }
         });
     }
+    
+    // Embedもここに追加（重要：Embed内は white-space: normal に戻すクラスを入れる）
+    if (m.embeds?.length > 0) accessoriesHtml += m.embeds.map(renderEmbed).join('');
 
-    if (m.embeds?.length > 0) contentHtml += m.embeds.map(renderEmbed).join('');
+    // --- ここからDOM生成 ---
 
     const el = document.createElement('div'); 
     el.id = `message-${m.id}`; 
-    el.className = `message-group px-4 pr-4 w-full flex flex-col ${isGrouped ? 'grouped' : ''}`;
+    // width:100% と flex-col を明示
+    el.className = `message-group ${isGrouped ? 'grouped' : ''} flex flex-col relative w-full`;
+    // 左マージンや余計なflex指定をCSSクラスだけに頼らずリセット
+    el.style.marginTop = isGrouped ? '2px' : '17px';
+    
     el.dataset.authorId = m.author.id;
 
     if (plugins.clickAction) el.addEventListener('dblclick', () => startReply(m));
@@ -637,42 +647,50 @@ function createMessageElement(m, isGrouped) {
 
     let historyHtml = '';
     if(plugins.messageLogger && editedMessages[m.id]) {
-        historyHtml = editedMessages[m.id];
+        historyHtml = `<div class="text-[var(--text-secondary)] opacity-80 text-sm line-through mb-1 whitespace-pre-wrap">${editedMessages[m.id]}</div>`;
     }
 
     const isMe = currentAccount && m.author.id === currentAccount.id;
-    
     const delBtn = isMe ? `<button onclick="deleteMessage('${m.id}', event)" class="p-1 hover:bg-[var(--bg-primary)] rounded text-red-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : '';
     const editBtn = isMe ? `<button onclick="startEdit('${m.id}')" class="p-1 hover:bg-[var(--bg-primary)] rounded text-[var(--text-secondary)]"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
     const replyBtn = `<button onclick='startReply(${JSON.stringify({id:m.id, author:m.author})})' class="p-1 hover:bg-[var(--bg-primary)] rounded text-[var(--text-secondary)]"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg></button>`;
-
-    const toolbar = `<div class="message-toolbar absolute -top-4 right-4 rounded shadow-sm bg-[var(--bg-secondary)] flex items-center p-0.5 z-20">${editBtn}${delBtn}${replyBtn}</div>`;
+    
+    // ツールバー
+    const toolbar = `<div class="message-toolbar absolute -top-4 right-4 rounded shadow-sm bg-[var(--bg-secondary)] flex items-center p-0.5 z-20 border border-[var(--border-color)]">${editBtn}${delBtn}${replyBtn}</div>`;
 
     let headerAddon = '';
     let nameStyle = m.member?.color ? `style="color:#${m.member.color.toString(16).padStart(6,'0')}"` : '';
-
     if (m.deleted && plugins.messageLogger) {
          headerAddon += '<span class="text-red-500 text-[10px] font-bold mr-1">[DELETED]</span>';
     }
+
+    const editedTag = m.edited_timestamp ? '<span class="edited-tag text-[10px] text-[var(--text-secondary)] ml-1">(edited)</span>' : '';
     
- if (isGrouped) {
-        const editedTag = m.edited_timestamp ? '<span class="edited-tag">(edited)</span>' : '';
-        // 修正前: w-full pl-[56px] ... で固定幅パディングを使用していた
-        // el.innerHTML = `${toolbar} <div class="w-full pl-[56px] message-content-text relative">${historyHtml}${contentHtml}${editedTag}</div>`;
-        
-        // 修正案: 通常メッセージと同じFlex構造を使い、左側（アイコン部分）を透明な空箱にして幅を合わせる
-        // mr-4 はTailwindの 1rem。 style="width: 40px" でアイコンと同じ幅を確保。
+    // 【重要】改行を含むテンプレートリテラルのインデントによる空白混入を防ぐため、HTMLは1行、またはインデントなしで結合する
+    // 本文エリアのHTML
+    const bodyContent = `<div class="message-body whitespace-pre-wrap leading-6 break-words text-[var(--text-primary)] relative">${contentHtml}${editedTag}</div>`;
+    
+    // 付属品エリア（Embedなど）のHTML：white-space: normal でリセットするクラスをつける
+    const accessoriesContent = accessoriesHtml ? `<div class="message-accessories whitespace-normal mt-1 w-full max-w-full">${accessoriesHtml}</div>` : '';
+    
+    // 中身全体
+    const fullContentHtml = `${historyHtml}${bodyContent}${accessoriesContent}`;
+
+    // グループ化あり/なしのHTML構築
+    if (isGrouped) {
+        // インデントの余白だけを持つFlexレイアウト（空白文字の排除）
+        // 56px = 40px(アイコン幅) + 16px(右マージン)
         el.innerHTML = `
-            ${toolbar}
-            <div class="flex mt-0.5 items-start w-full">
-                <div class="mr-4 flex-shrink-0" style="width: 40px;"></div> <!-- アイコンの代わりの透明なスペース -->
-                <div class="flex-1 min-w-0">
-                    <div class="message-content-text relative">
-                        ${historyHtml}${contentHtml}${editedTag}
-                    </div>
-                </div>
-            </div>`;
-    } else {
+        ${toolbar}
+        <div class="flex items-start w-full">
+            <div style="width:56px;min-width:56px;"></div>
+            <div class="flex-1 min-w-0 pr-4">
+                ${fullContentHtml}
+            </div>
+        </div>`.replace(/\n\s+/g, ''); // JS上のインデント（改行+スペース）を最後に削除して出力
+    } 
+    else {
+        // 通常メッセージ
         const member = m.member || {}; 
         const name = member.nick || m.author.global_name || m.author.username;
         const avUrl = member.avatar ? `https://cdn.discordapp.com/guilds/${currentChannel.guild_id}/users/${m.author.id}/avatars/${member.avatar}.png?size=64` : (m.author.avatar ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${m.author.discriminator%5}.png`);
@@ -680,66 +698,60 @@ function createMessageElement(m, isGrouped) {
         let decoHtml = '';
         if (m.author.avatar_decoration_data) { 
              const decoUrl = `https://cdn.discordapp.com/avatar-decoration-presets/${m.author.avatar_decoration_data.asset}.png?size=96`; 
-             // 修正点1: デコレーション画像のサイズを style で直接 % 指定し、ポインターイベントを無効化
-             decoHtml = `<img src="${decoUrl}" class="avatar-decoration" style="width: 120%; height: 120%; max-width: none;">`; 
+             // 前回のデコレーション修正もここに適用済み
+             decoHtml = `<img src="${decoUrl}" style="position:absolute;top:50%;left:50%;width:120%;height:120%;max-width:none;transform:translate(-50%,-50%);pointer-events:none;z-index:20;">`; 
         }
 
         const date = new Date(m.timestamp);
         const timeStr = plugins.sendSeconds ? date.toLocaleTimeString() : date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        
         const usernameDisp = plugins.showMeYourName ? `<span class="ml-1 text-[0.8em] font-medium text-[var(--text-secondary)] opacity-70">@${m.author.username}</span>` : '';
         const botTag = m.author.bot ? `<span class="ml-1.5 bg-[#5865F2] text-white text-[0.625rem] px-1.5 rounded-[0.1875rem] py-[1px] font-medium align-middle">BOT</span>` : '';
 
-        // Reference
+        // リプライ参照
         let refHtml = '';
         if (m.referenced_message) {
             const rm = m.referenced_message;
             const refName = rm.author ? (rm.author.global_name || rm.author.username) : "Unknown";
-            const refAv = rm.author && rm.author.avatar 
-                ? `https://cdn.discordapp.com/avatars/${rm.author.id}/${rm.author.avatar}.png?size=16` 
-                : 'https://cdn.discordapp.com/embed/avatars/0.png';
-            
-            refHtml = `<div class="flex items-center gap-1 ml-[52px] mb-1 opacity-70 text-sm cursor-pointer hover:opacity-100 relative" onclick="scrollToMessage('${rm.id}')">
-                <div class="reply-spine"></div>
-                <img src="${refAv}" class="w-4 h-4 rounded-full"> 
-                <span class="font-bold mr-1 text-[var(--text-primary)] whitespace-nowrap overflow-hidden">${refName}</span> 
-                <span class="text-[var(--text-secondary)] truncate">${rm.content || '添付ファイル'}</span>
-            </div>`;
+            const refAv = rm.author && rm.author.avatar ? `https://cdn.discordapp.com/avatars/${rm.author.id}/${rm.author.avatar}.png?size=16` : 'https://cdn.discordapp.com/embed/avatars/0.png';
+            refHtml = `
+            <div class="flex items-center gap-1 ml-[56px] mb-1 opacity-70 text-sm cursor-pointer hover:opacity-100 relative w-fit" onclick="scrollToMessage('${rm.id}')">
+                <div style="position:absolute;top:50%;left:-24px;width:34px;height:12px;border-left:2px solid var(--text-secondary);border-top:2px solid var(--text-secondary);border-top-left-radius:6px;margin-top:-2px;pointer-events:none;"></div>
+                <img src="${refAv}" class="w-4 h-4 rounded-full">
+                <span class="font-bold mr-1 truncate max-w-[200px]">${refName}</span>
+                <span class="truncate max-w-[300px]">${rm.content || '添付ファイル'}</span>
+            </div>`.replace(/\n\s+/g, '');
         }
 
-        const editedTag = m.edited_timestamp ? '<span class="edited-tag">(edited)</span>' : '';
-
-        // Structure: Header -> (Row: Avatar | (HeaderName+Date, Content))
-       el.innerHTML = `
+        // JS内のHTML構造での改行コード混入を防ぐ書き方
+        el.innerHTML = `
         ${refHtml}
         ${toolbar} 
-        <div class="flex mt-0.5 items-start w-full"> 
-            <div class="avatar-container mr-4 cursor-pointer relative shrink-0 w-10 h-10 active:translate-y-[1px]" style="width: 40px; height: 40px; min-width: 40px;">
-                <img src="${avUrl}" class="avatar-img shadow-sm hover:shadow-md transition-shadow rounded-full block w-full h-full object-cover relative z-10">
+        <div class="flex mt-0.5 items-start w-full relative">
+            <div class="mr-4 relative flex-shrink-0" style="width: 40px; height: 40px;">
+                <img src="${avUrl}" class="rounded-full w-full h-full object-cover relative z-10 block">
                 ${decoHtml}
-            </div> 
-            <div class="flex-1 min-w-0"> 
-                <div class="flex items-center leading-[1.375rem]"> 
-                    ${headerAddon} 
-                    <span class="font-medium mr-1 cursor-pointer hover:underline" ${nameStyle}>${name}</span> 
-                    ${usernameDisp}${botTag} 
-                    <span class="ml-2 text-[0.75rem] text-[var(--text-secondary)] cursor-default">${timeStr}</span> 
-                </div> 
-                <div class="message-content-text whitespace-pre-wrap leading-[1.375rem] relative">
-                    ${historyHtml}${contentHtml}${editedTag}
-                </div> 
-            </div> 
-        </div>`;
+            </div>
+            <div class="flex-1 min-w-0 pr-4">
+                <div class="flex items-baseline leading-tight">
+                    ${headerAddon}
+                    <span class="font-medium mr-1 cursor-pointer hover:underline" ${nameStyle}>${name}</span>
+                    ${usernameDisp}${botTag}
+                    <span class="ml-2 text-xs text-[var(--text-secondary)]">${timeStr}</span>
+                </div>
+                ${fullContentHtml}
+            </div>
+        </div>`.replace(/\n\s+/g, ' '); // 念のため整形用の改行をスペースに置換
     }
-
+    
     if (m.deleted && plugins.messageLogger) {
-         const contentDiv = el.querySelector('.message-content-text');
+         const contentDiv = el.querySelector('.message-body');
          if(contentDiv) contentDiv.classList.add('deleted-text');
     }
-
-    const contentText = el.querySelector('.message-content-text');
-    if(contentText) contentText.dataset.originalContent = m.content;
     
+    // 元テキスト保存（編集機能用）
+    const contentText = el.querySelector('.message-body');
+    if(contentText) contentText.dataset.originalContent = m.content;
+
     return el;
 }
 
