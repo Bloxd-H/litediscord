@@ -286,18 +286,34 @@ function renderCurrentUserPanel() {
     nameEl.textContent = currentAccount.global_name || currentAccount.username;
     subEl.textContent = `@${currentAccount.username}`;
     
-    const avatar = currentAccount.avatar 
-        ? `https://cdn.discordapp.com/avatars/${currentAccount.id}/${currentAccount.avatar}.png?size=64` 
-        : `https://cdn.discordapp.com/embed/avatars/${currentAccount.discriminator % 5}.png`;
-        
-    let deco = '';
+    const avatar = currentAccount.avatar ? `https://cdn.discordapp.com/avatars/${currentAccount.id}/${currentAccount.avatar}.png?size=128` : `https://cdn.discordapp.com/embed/avatars/${currentAccount.discriminator % 5}.png`;
+    
+    let decoHtml = '';
     if(currentAccount.avatar_decoration_data) {
         const decoUrl = `https://cdn.discordapp.com/avatar-decoration-presets/${currentAccount.avatar_decoration_data.asset}.png?size=96`;
-        deco = `<img src="${decoUrl}" class="avatar-decoration">`;
+        // user-panel-decoration クラスを使用し、親コンテナからはみ出すことを許可
+        decoHtml = `<img src="${decoUrl}" class="user-panel-decoration">`;
     }
     
-    avCont.innerHTML = `<img src="${avatar}" class="avatar-img shadow-sm rounded-full">${deco}`;
+    // 【修正】コンテナ自体を w-full h-full にして、HTML側の親要素サイズ(w-9 h-9)よりも大きく表示できるように
+    // CSS上書き用スタイルを追加
+    avCont.innerHTML = `
+        <div style="width: 48px; height: 48px; position: absolute; bottom: 0; left: -4px;">
+            <img src="${avatar}" class="rounded-full w-full h-full object-cover shadow-sm">
+            ${decoHtml}
+        </div>`;
+    
     renderAccountSwitcher();
+
+    // --- 設定アイコン(SVG)の修正 ---
+    const settingsBtn = document.getElementById('open-settings-btn');
+    // SVGパスを正常な歯車アイコンに書き換え
+    settingsBtn.innerHTML = `
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path>
+            <!-- 穴の部分 -->
+            <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" fill="var(--bg-secondary)"></path>
+        </svg>`;
 }
 
 function renderAccountSwitcher() {
@@ -761,48 +777,62 @@ async function sendMessage() {
     const content = input.value.trim();
     if (!content && !attachedFile) return;
 
-    const tempId = `temp-${Date.now()}`;
+    // 現在時刻をDateオブジェクトで作っておく
+    const now = new Date();
+    const tempId = `temp-${now.getTime()}`;
+    
+    // 仮メッセージオブジェクト作成
     const fakeMsg = { 
         id: tempId, 
         author: currentAccount, 
         content: content, 
-        timestamp: new Date().toISOString(), 
-        isSending: true 
+        // 【重要】renderMsg内での計算用に、文字列ではなくDateオブジェクトそのものか、正しいISO文字列を渡す
+        timestamp: now.toISOString(), 
+        isSending: true,
+        // グループ化判定のためにmember情報も最低限入れておく
+        member: { avatar: null }
     };
-    if (attachedFile) fakeMsg.attachments = [{ filename: attachedFile.name, url: '#' }];
+
+    if (attachedFile) fakeMsg.attachments = [{ filename: attachedFile.name, url: '#', content_type: attachedFile.type }];
     
+    // ここで renderMsg を呼ぶと、timestampが新しいので直前のメッセージと比較され、
+    // 条件（5分以内・同じ人）を満たせば「isGrouped=true」で描画されます。
     renderMsg(fakeMsg);
     
-    input.value = ''; 
-    handleInput();
+    input.value = ''; handleInput();
     const container = document.getElementById('message-container');
     container.scrollTop = container.scrollHeight; 
 
-    let body; 
-    let isForm = false;
-    
-    const replyRef = replyingTo ? { message_id: replyingTo.messageId } : undefined;
+    // 送信処理（変更なし）
+    try {
+        const replyRef = replyingTo ? { message_id: replyingTo.messageId } : undefined;
+        let body, isForm = false;
+        
+        if (attachedFile) { 
+            body = new FormData(); 
+            body.append('payload_json', JSON.stringify({ content: content, message_reference: replyRef }));
+            body.append('files[0]', attachedFile); 
+            isForm = true; 
+        } else {
+            body = { content: content, message_reference: replyRef };
+        }
 
-    if (attachedFile) { 
-        body = new FormData(); 
-        body.append('payload_json', JSON.stringify({ content: content, message_reference: replyRef }));
-        body.append('files[0]', attachedFile); 
-        isForm = true; 
-    } else {
-        body = { content: content, message_reference: replyRef };
-    }
-
-    const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages`, 'POST', body, isForm);
-    if (!res.error) {
-         cancelAttachment(); 
-         cancelReply();
-    } else {
-         const el = document.getElementById(`message-${tempId}`);
-         if(el) {
-             el.classList.remove('message-sending'); 
-             el.classList.add('message-failed');
-         }
-         renderClydeError('送信失敗: ' + (res.error.message || 'Unknown Error'));
+        const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages`, 'POST', body, isForm);
+        if (!res.error) {
+             cancelAttachment(); cancelReply();
+             // API成功レスポンスが来ると、WS(MESSAGE_CREATE)経由で正式メッセージが来るので
+             // createMessageElement内の nonce 処理等で仮メッセージは消えます
+        } else {
+             const el = document.getElementById(`message-${tempId}`);
+             if(el) {
+                 el.classList.remove('message-sending'); el.classList.add('message-failed');
+             }
+             renderClydeError('送信失敗: ' + (res.error.message || 'Unknown Error'));
+        }
+    } catch(e) {
+        console.error(e);
+        const el = document.getElementById(`message-${tempId}`);
+        if(el) { el.classList.remove('message-sending'); el.classList.add('message-failed'); }
     }
 }
 
@@ -1078,38 +1108,34 @@ function switchSettingsTab(tabName) {
 }
 
 async function loadMoreMessages() {
-    // 読み込み中、またはこれ以上過去ログがない、またはチャンネル未選択なら終了
     if (isLoadingMore || !oldestMessageId || !currentChannel) return;
-
-    // スクロール位置が上端付近でないなら何もしない（誤爆防止）
     const container = document.getElementById('message-container');
-    if (container.scrollTop > 50) return;
+    
+    // 誤動作防止：上の方にいない場合は読み込まない
+    if (container.scrollTop > 100) return;
 
     isLoadingMore = true;
-    const oldHeight = container.scrollHeight; // ロード前の高さを記録
+    
+    // 【重要】現在のスクロール高さを保存
+    const previousHeight = container.scrollHeight;
+    const previousTop = container.scrollTop;
 
-    // APIリクエスト（limit=50件）
     const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages?limit=50&before=${oldestMessageId}`);
     
     if (res.data && res.data.length > 0) {
         const messages = res.data;
-        // 読み込んだ中で一番古いIDを記録
         oldestMessageId = messages[messages.length - 1].id;
-
         const fragment = document.createDocumentFragment();
-        // APIは「新しい→古い」順で来るので、逆順（古い→新しい）にして上から描画できるようにする
         const arr = messages.reverse();
 
+        // 過去ログ内のグループ化計算用
         let lastBatchAuthId = null;
         let lastBatchTimestamp = 0;
 
         arr.forEach((m, index) => {
             if (plugins.messageLogger) messageStore[m.id] = m;
-            
             let isGrouped = false;
-
             // バッチ内でのグループ化判定
-            // (1) 1つ前のメッセージがある (2) 同じ作者 (3) 返信/Webhookでない (4) 5分以内
             if (index > 0) {
                  const timeDiff = new Date(m.timestamp).getTime() - lastBatchTimestamp;
                  if (lastBatchAuthId === m.author.id && 
@@ -1118,26 +1144,21 @@ async function loadMoreMessages() {
                      isGrouped = true;
                  }
             }
-
-            // 【重要】ここでさっき直した createMessageElement を呼ぶ
             const el = createMessageElement(m, isGrouped);
-            
-            el.dataset.authorId = m.author.id;
-            el.dataset.timestamp = m.timestamp;
-            
             fragment.appendChild(el);
-
             lastBatchAuthId = m.author.id;
             lastBatchTimestamp = new Date(m.timestamp).getTime();
         });
 
+        // 要素を挿入
         container.prepend(fragment);
         
-        // スクロール位置の維持補正
-        // (新しい全体の高さ - 古い高さ) 分だけスクロールしないと、見た目が一番上に飛んでしまう
-        container.scrollTop = container.scrollHeight - oldHeight;
+        // 【重要】高さの差分を計算して、スクロール位置を調整
+        // これにより「見た目上の位置」が維持される
+        const newHeight = container.scrollHeight;
+        container.scrollTop = newHeight - previousHeight + previousTop;
+        
     } else {
-        // もうデータがない場合
         oldestMessageId = null;
     }
     
