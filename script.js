@@ -45,6 +45,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Make DM Icon clickable - binding directly
+    document.getElementById('dm-icon').onclick = loadDms;
+
     document.getElementById('send-button').onclick = sendMessage;
     
     document.getElementById('attach-button').onclick = () => {
@@ -293,7 +296,7 @@ function renderCurrentUserPanel() {
         deco = `<img src="${decoUrl}" class="avatar-decoration">`;
     }
     
-    avCont.innerHTML = `<img src="${avatar}" class="avatar-img shadow-sm">${deco}`;
+    avCont.innerHTML = `<img src="${avatar}" class="avatar-img shadow-sm rounded-full">${deco}`;
     renderAccountSwitcher();
 }
 
@@ -426,6 +429,42 @@ async function loadGuilds() {
         list.innerHTML = '';
         res.data.forEach(s => list.appendChild(createServerIconElement(s)));
     }
+}
+
+async function loadDms() {
+    if (!currentAccount) return;
+    
+    // UI update
+    document.querySelectorAll('.server-icon.active').forEach(e => e.classList.remove('active'));
+    document.getElementById('dm-icon').classList.add('active');
+    document.getElementById('guild-name').innerText = 'Direct Messages';
+    
+    const res = await apiRequest(currentAccount.token, '/users/@me/channels');
+    if (res.error) return;
+    
+    const list = document.getElementById('channel-list');
+    list.innerHTML = '';
+    
+    const dms = res.data.sort((a,b) => (b.last_message_id||0) - (a.last_message_id||0));
+    
+    dms.forEach(dm => {
+        const div = document.createElement('div');
+        div.className = "channel-item p-1.5 pl-3 rounded-md cursor-pointer mb-0.5 text-[0.95em] truncate flex items-center";
+        
+        let icon = '<span class="text-xl mr-2 text-[var(--text-secondary)]">@</span>';
+        let name = "DM";
+        if(dm.recipients && dm.recipients[0]) {
+            const user = dm.recipients[0];
+            const av = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=32` : 'https://cdn.discordapp.com/embed/avatars/0.png';
+            icon = `<img src="${av}" class="w-5 h-5 mr-2 rounded-full">`;
+            name = user.global_name || user.username;
+        }
+        
+        div.innerHTML = `${icon}<span>${name}</span>`;
+        div.onclick = () => selectChannel(dm);
+        list.appendChild(div);
+    });
+    updatePingDots();
 }
 
 async function loadChannels(g, element) {
@@ -589,7 +628,7 @@ function createMessageElement(m, isGrouped) {
 
     const el = document.createElement('div'); 
     el.id = `message-${m.id}`; 
-    el.className = `message-group px-4 pr-12 flex flex-col ${isGrouped ? 'grouped' : ''}`;
+    el.className = `message-group px-4 pr-4 w-full flex flex-col ${isGrouped ? 'grouped' : ''}`;
     el.dataset.authorId = m.author.id;
 
     if (plugins.clickAction) el.addEventListener('dblclick', () => startReply(m));
@@ -605,12 +644,9 @@ function createMessageElement(m, isGrouped) {
     
     const delBtn = isMe ? `<button onclick="deleteMessage('${m.id}', event)" class="p-1 hover:bg-[var(--bg-primary)] rounded text-red-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : '';
     const editBtn = isMe ? `<button onclick="startEdit('${m.id}')" class="p-1 hover:bg-[var(--bg-primary)] rounded text-[var(--text-secondary)]"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
-    
     const replyBtn = `<button onclick='startReply(${JSON.stringify({id:m.id, author:m.author})})' class="p-1 hover:bg-[var(--bg-primary)] rounded text-[var(--text-secondary)]"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg></button>`;
 
-    const toolbar = `<div class="message-toolbar absolute -top-4 right-4 rounded shadow-sm bg-[var(--bg-secondary)] flex items-center p-0.5 z-20">
-        ${editBtn}${delBtn}${replyBtn}
-    </div>`;
+    const toolbar = `<div class="message-toolbar absolute -top-4 right-4 rounded shadow-sm bg-[var(--bg-secondary)] flex items-center p-0.5 z-20">${editBtn}${delBtn}${replyBtn}</div>`;
 
     let headerAddon = '';
     let nameStyle = m.member?.color ? `style="color:#${m.member.color.toString(16).padStart(6,'0')}"` : '';
@@ -619,9 +655,16 @@ function createMessageElement(m, isGrouped) {
          headerAddon += '<span class="text-red-500 text-[10px] font-bold mr-1">[DELETED]</span>';
     }
     
+    // Grouped (Simplified, left-aligned correctly via flex)
     if (isGrouped) {
         const editedTag = m.edited_timestamp ? '<span class="edited-tag">(edited)</span>' : '';
-        el.innerHTML = `${toolbar} <div class="ml-[56px] message-content-text relative">${historyHtml}${contentHtml}${editedTag}</div>`;
+        // Align text with the non-grouped version. Non-grouped has 40px avatar + 16px mr = 56px offset visually.
+        // We simulate this by simple left padding/margin on text
+        el.innerHTML = `
+            ${toolbar}
+            <div class="pl-[56px] w-full message-content-text relative">
+                ${historyHtml}${contentHtml}${editedTag}
+            </div>`;
     } 
     else {
         const member = m.member || {}; 
@@ -644,6 +687,7 @@ function createMessageElement(m, isGrouped) {
         const usernameDisp = plugins.showMeYourName ? `<span class="ml-1 text-[0.8em] font-medium text-[var(--text-secondary)] opacity-70">@${m.author.username}</span>` : '';
         const botTag = m.author.bot ? `<span class="ml-1.5 bg-[#5865F2] text-white text-[0.625rem] px-1.5 rounded-[0.1875rem] py-[1px] font-medium align-middle">BOT</span>` : '';
 
+        // Reference
         let refHtml = '';
         if (m.referenced_message) {
             const rm = m.referenced_message;
@@ -662,10 +706,13 @@ function createMessageElement(m, isGrouped) {
 
         const editedTag = m.edited_timestamp ? '<span class="edited-tag">(edited)</span>' : '';
 
-        el.innerHTML = `${refHtml}${toolbar} 
-        <div class="flex mt-0.5"> 
+        // Structure: Header -> (Row: Avatar | (HeaderName+Date, Content))
+        el.innerHTML = `
+        ${refHtml}
+        ${toolbar} 
+        <div class="flex mt-0.5 items-start"> 
             <div class="avatar-container mr-4 cursor-pointer active:translate-y-[1px]">
-                <img src="${avUrl}" class="avatar-img shadow-sm hover:shadow-md transition-shadow">${decoHtml}
+                <img src="${avUrl}" class="avatar-img shadow-sm hover:shadow-md transition-shadow rounded-full">${decoHtml}
             </div> 
             <div class="flex-1 min-w-0"> 
                 <div class="flex items-center leading-[1.375rem]"> 
@@ -781,14 +828,9 @@ function connectWS() {
         } else if (d.t === 'READY') {
              if (d.d.user_settings?.guild_folders) { 
                  guildFolders = d.d.user_settings.guild_folders; 
-                 // If the list is empty (no user action), don't wipe it out. 
-                 // But wait, renderFolders clears list...
-                 // Only render if we have valid structure
                  if(document.getElementById('guild-list').children.length === 0 || guildFolders.length > 0) {
                      renderFolders();
                  }
-             } else {
-                 // No folders? keep fallback load
              }
         
         } else if (d.t === 'MESSAGE_CREATE') {
