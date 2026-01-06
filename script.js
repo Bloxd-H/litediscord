@@ -697,20 +697,54 @@ function showSidebarView() { document.getElementById('sidebar-view').classList.r
 function showChatView() { document.getElementById('sidebar-view').classList.add('hidden'); document.getElementById('chat-section').classList.remove('hidden'); document.getElementById('chat-section').classList.add('flex'); }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Theme
+    // テーマ適用
     if (localStorage.theme === 'dark' || (!localStorage.theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
     
-    document.getElementById('theme-toggle-btn').onclick = () => { document.documentElement.classList.toggle('dark'); localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'; };
-    document.getElementById('send-button').onclick = sendMessage;
-    document.getElementById('attach-button').onclick = () => document.getElementById('file-input').click();
-    document.getElementById('file-input').onchange = e => { if (e.target.files[0]) { attachedFile = e.target.files[0]; document.getElementById('attachment-preview-bar').classList.remove('hidden'); document.getElementById('attachment-preview-name').innerText = attachedFile.name; handleInput(); }};
-    document.getElementById('cancel-attachment-btn').onclick = () => { attachedFile = null; document.getElementById('attachment-preview-bar').classList.add('hidden'); handleInput(); };
-    document.getElementById('cancel-reply-btn').onclick = cancelReply;
-    document.getElementById('message-input').oninput = handleInput;
-    document.getElementById('message-input').onkeypress = e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }};
-    document.getElementById('back-to-channels-btn').onclick = showSidebarView;
-    window.addEventListener('resize', handleResize);
+    // 安全に要素を取得してイベントを設定する関数
+    const setEvent = (id, event, func) => {
+        const el = document.getElementById(id);
+        if (el) el[event] = func;
+    };
 
+    // 安全にイベント設定（エラーが出ないように修正）
+    setEvent('theme-toggle-btn', 'onclick', () => { document.documentElement.classList.toggle('dark'); localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'; });
+    setEvent('send-button', 'onclick', sendMessage);
+    setEvent('attach-button', 'onclick', () => document.getElementById('file-input').click());
+    setEvent('cancel-attachment-btn', 'onclick', () => { attachedFile = null; document.getElementById('attachment-preview-bar').classList.add('hidden'); handleInput(); });
+    setEvent('cancel-reply-btn', 'onclick', cancelReply);
+    setEvent('back-to-channels-btn', 'onclick', showSidebarView);
+    setEvent('add-account-button', 'onclick', () => addAccount(document.getElementById('token-input').value));
+    setEvent('show-add-account-form-btn', 'onclick', () => showTokenInput(null));
+    setEvent('back-to-accounts-btn', 'onclick', () => showLoginScreen());
+    setEvent('dm-icon', 'onclick', e => loadDms(e.currentTarget));
+
+    // アカウントスイッチャー系（HTML更新漏れでよくエラーになる箇所）
+    setEvent('add-account-switcher-btn', 'onclick', () => { document.getElementById('account-switcher').classList.add('hidden'); showTokenInput(null); });
+    
+    // input系は特別扱い
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.onchange = e => { if (e.target.files[0]) { attachedFile = e.target.files[0]; document.getElementById('attachment-preview-bar').classList.remove('hidden'); document.getElementById('attachment-preview-name').innerText = attachedFile.name; handleInput(); }};
+    
+    const msgInput = document.getElementById('message-input');
+    if (msgInput) {
+        msgInput.oninput = handleInput;
+        msgInput.onkeypress = e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }};
+    }
+    
+    const msgContainer = document.getElementById('message-container');
+    if (msgContainer) {
+        msgContainer.addEventListener('scroll', e => { if (e.target.scrollTop < 100 && oldestMessageId) loadMoreMessages() });
+    }
+
+    // Settings Modal
+    window.addEventListener('resize', handleResize);
+    document.addEventListener('click', (e) => { 
+        if (!e.target.closest('#popup-picker') && !e.target.closest('#message-input')) document.getElementById('popup-picker')?.classList.add('hidden'); 
+        if (!e.target.closest('#account-switcher') && !e.target.closest('#user-info-panel')) document.getElementById('account-switcher')?.classList.add('hidden');
+    });
+
+    // 起動処理
+    await migrateOldData(); 
     const ac = getAccounts();
     const act = getActiveAccountId();
     if(ac.length>0 && act) switchAccount(act); else showLoginScreen();
