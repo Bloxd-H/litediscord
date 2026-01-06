@@ -1022,11 +1022,12 @@ function parseMarkdown(t) {
         .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-[var(--text-link)] hover:underline">$1</a>'); 
 }
 
-function renderEmbed(e) { 
-    return `<div style="border-left:4px solid ${e.color ? '#' + e.color.toString(16).padStart(6,'0') : '#ccc'};" class="bg-[var(--bg-tertiary)] p-3 rounded mt-1 max-w-xl text-sm break-words">
+function renderEmbed(e) {
+    // テンプレート内の改行を削除して返す
+    return `<div style="border-left:4px solid ${e.color ? '#' + e.color.toString(16).padStart(6,'0') : '#ccc'};" class="bg-[var(--bg-tertiary)] p-3 rounded mt-2 max-w-xl text-sm break-words whitespace-normal block w-full">
         ${e.title ? `<b class="block mb-1">${e.title}</b>` : ''}
         ${e.description ? `<span>${parseMarkdown(e.description)}</span>` : ''}
-    </div>`; 
+    </div>`.replace(/\n\s+/g, '');
 }
 
 function renderClydeError(t) { 
