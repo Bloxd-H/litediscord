@@ -1,22 +1,29 @@
 :root {
-    --bg-primary: #f2f3f5;
-    --bg-secondary: #ebedef;
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #ffffff;
     --bg-tertiary: #e3e5e8;
-    --bg-quaternary: #dbdee1;
+    --bg-quaternary: #ebedef;
     --text-primary: #060607;
     --text-secondary: #5e6772;
     --text-link: #00b0f4;
-    --border-color: #d4d7dc;
+    --border-color: #d1d5db;
     --button-bg: #5865f2;
     --button-text: #fff;
-    --hover-bg: #e1e3e5;
-    --active-bg: #d0d3d7;
+    --hover-bg: #ebedef;
+    --active-bg: #dadce0;
     --mention-bg: rgba(88, 101, 242, 0.1);
     --mention-fg: #5865f2;
+    --mention-bg-highlight: rgba(250, 233, 105, 0.1);
+    --mention-border-highlight: #faa81a;
     --error-bg: rgba(237, 66, 69, 0.05);
-    --reply-spine-color: #c4c9ce; 
-    --folder-bg: rgba(88, 101, 242, 0.4);
+    --error-border: #ed4245;
+    --code-bg: #f2f3f5;
+    --message-hover: rgba(6, 6, 7, 0.02);
     --popup-bg: #ffffff;
+    --popup-highlight: #e3e5e8;
+    --deleted-bg: rgba(237, 66, 69, 0.05);
+    --reply-spine-color: #c4c9ce; 
+    --folder-bg: rgba(88, 101, 242, 0.2);
 }
 
 html.dark {
@@ -24,7 +31,7 @@ html.dark {
     --bg-secondary: #2b2d31;
     --bg-tertiary: #1e1f22;
     --bg-quaternary: #111214;
-    --text-primary: #dbdee1;
+    --text-primary: #f2f3f5;
     --text-secondary: #949ba4;
     --text-link: #00b0f4;
     --border-color: #26272d;
@@ -32,24 +39,26 @@ html.dark {
     --button-text: #ffffff;
     --hover-bg: #35373c;
     --active-bg: #3f4147;
-    --mention-bg: rgba(88, 101, 242, 0.3);
+    --mention-bg: rgba(88, 101, 242, 0.15);
     --mention-fg: #c9cdfb;
+    --mention-bg-highlight: rgba(250, 233, 105, 0.05);
     --error-bg: rgba(240, 71, 71, 0.1);
-    --reply-spine-color: #4e5058; 
-    --folder-bg: rgba(88, 101, 242, 0.4);
+    --code-bg: #2b2d31;
+    --message-hover: rgba(2, 2, 2, 0.06);
     --popup-bg: #2b2d31;
+    --popup-highlight: #35373c;
+    --deleted-bg: rgba(240, 71, 71, 0.1);
+    --reply-spine-color: #4f545c; 
+    --folder-bg: rgba(88, 101, 242, 0.2);
 }
 
-body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-}
-
-/* Scrollbar Tweaks */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background-color: var(--bg-primary); border-radius: 4px; }
-::-webkit-scrollbar-thumb { background-color: #1a1b1e; border-radius: 4px; }
-html:not(.dark) ::-webkit-scrollbar-thumb { background-color: #ccc; }
+::-webkit-scrollbar-track { background-color: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background-color: var(--bg-quaternary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--text-secondary); }
+
+#message-input::placeholder { color: var(--text-secondary); opacity: 0.7; }
+#message-input, .input-field { outline: none; border: none; }
 
 .server-icon {
     width: 48px; height: 48px; min-height: 48px;
@@ -57,126 +66,134 @@ html:not(.dark) ::-webkit-scrollbar-thumb { background-color: #ccc; }
     cursor: pointer; transition: all 0.2s cubic-bezier(0,0,0,1);
     background-color: var(--bg-primary);
     display: flex; align-items: center; justify-content: center;
-    position: relative; z-index: 10;
+    position: relative; overflow: visible; z-index: 10;
 }
-/* ホバー時の挙動を改善 */
-.server-icon:hover, .server-icon.active { border-radius: 16px; background-color: var(--button-bg); color: #fff;}
+.server-icon img { border-radius: 50%; transition: border-radius 0.2s; }
+.server-icon:hover, .server-icon.active { border-radius: 16px; }
+.server-icon:hover img, .server-icon.active img { border-radius: 16px; }
 .server-icon.active::before {
-    content: ''; position: absolute; left: -14px; top: 10px; height: 28px; width: 4px;
-    background-color: var(--text-primary); border-radius: 0 4px 4px 0;
+    content: ''; position: absolute; left: -14px; top: 10px; height: 28px; width: 8px;
+    background-color: var(--text-primary); border-radius: 0 4px 4px 0; transition: height 0.2s;
 }
 
-/* Reply Spine Fix */
+.folder-closed {
+    width: 48px; height: 48px; border-radius: 24px;
+    background-color: var(--folder-bg); cursor: pointer;
+    display: flex; flex-wrap: wrap; padding: 10px; gap: 4px;
+    align-items: center; justify-content: center;
+    transition: all 0.2s;
+}
+.folder-closed:hover { border-radius: 16px; background-color: var(--button-bg); }
+.folder-icon-thumb { width: 10px; height: 10px; object-fit: cover; border-radius: 50%; background: var(--bg-secondary); }
+
+.folder-opened {
+    background-color: transparent !important; color: var(--text-secondary);
+    width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; padding: 4px;
+}
+
+/* Background for servers INSIDE an open folder to be blue-ish */
+.server-icon.in-folder::after {
+    content: ''; position: absolute; inset: -4px;
+    background-color: rgba(88, 101, 242, 0.15); 
+    border-radius: 16px; z-index: -1; 
+}
+
+.ping-dot {
+    position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px;
+    background-color: #ed4245; border-radius: 50%; border: 4px solid var(--bg-tertiary);
+    z-index: 30; pointer-events: none;
+}
+.channel-item.active { background-color: var(--active-bg); color: var(--text-primary); }
+.channel-item:hover:not(.active) { background-color: var(--hover-bg); color: var(--text-primary); }
+
+/* Avatar Decoration Centering Fix */
+.avatar-container {
+    width: 40px; height: 40px; margin-top: 2px;
+    position: relative; flex-shrink: 0;
+}
+.avatar-img { 
+    width: 100%; height: 100%; 
+    border-radius: 50%; object-fit: cover;
+    position: relative; z-index: 10;
+}
+.avatar-decoration { 
+    position: absolute; 
+    top: 50%; left: 50%; 
+    width: 120%; height: 120%; 
+    transform: translate(-50%, -50%); 
+    pointer-events: none; z-index: 20; 
+    object-fit: contain;
+}
+
+#user-info-panel .avatar-container, #user-info-panel .relative { overflow: visible; }
+#user-info-panel .avatar-decoration { top: 50%; left: 50%; width: 124%; height: 124%; transform: translate(-50%, -50%); }
+
+.message-group { position: relative; margin-top: 1.0625rem; min-height: 1rem; }
+.message-group.grouped { margin-top: 0.125rem; }
+.message-group:hover { background-color: var(--message-hover); }
+.message-group:hover .message-toolbar { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.message-toolbar { opacity: 0; pointer-events: none; transform: translateY(-4px); transition: all 0.1s; border: 1px solid var(--border-color); }
+
+.message-content-text { user-select: text; overflow-wrap: break-word; line-height: 1.375rem; color: var(--text-primary); }
+
+.message-sending { opacity: 0.5; } 
+.message-failed .message-content-text { color: #ed4245; }
+
+.deleted-text { color: #ed4245; }
+.history-line { font-size: 0.9em; color: var(--text-secondary); opacity: 0.8; text-decoration: line-through; display: block; margin-bottom: 2px; }
+.edited-tag { font-size: 0.625rem; color: var(--text-secondary); margin-left: 4px; user-select: none; }
+
+@keyframes flash-yellow {
+    0%, 20% { background-color: rgba(250, 166, 26, 0.2); }
+    100% { background-color: transparent; }
+}
+.flash-highlight { animation: flash-yellow 1.5s ease-out forwards; }
+
+/* Adjusted Reply Spine (Simple Hook) */
 .reply-spine {
     position: absolute;
-    top: 50%; left: -24px; 
-    width: 38px; height: 14px;
+    top: 50%; left: -14px; 
+    width: 32px; height: 10px;
     border-left: 2px solid var(--reply-spine-color);
     border-top: 2px solid var(--reply-spine-color);
     border-top-left-radius: 6px;
-    margin-top: -3px; 
+    margin-top: -5px; 
     pointer-events: none;
     z-index: 0;
+    /* Aligned for the referenced block */
 }
 
-/* --- Message Layout Fixes --- */
+.settings-tab-item {
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; color: var(--text-secondary); font-weight: 500;
+}
+.settings-tab-item:hover { background-color: var(--hover-bg); color: var(--text-primary); }
+.settings-tab-item.active { background-color: var(--active-bg); color: var(--text-primary); cursor: default; }
 
-/* 行ごとのラッパーとしての設定 */
-.message-group {
-    width: 100%;
-    margin-top: 17px;     /* 通常メッセージの間隔 */
-    display: block;       /* flex-colからblockへ変更 (中身でFlex制御するため) */
-    position: relative;
-    user-select: text;
+.theme-card {
+    width: 140px; height: 90px;
+    border-radius: 8px; cursor: pointer;
+    position: relative; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.1s;
+}
+.theme-card:hover { transform: translateY(-2px); }
+.theme-card-check {
+    position: absolute; top: -6px; right: -6px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background-color: white; border: 3px solid var(--text-secondary);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary); box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
-/* 連続した発言（グループ）の場合はマージンを詰める */
-.message-group.grouped {
-    margin-top: 0px;      /* ピタッとくっつける */
-    margin-bottom: 0px;
-}
+.category-arrow { transition: transform 0.2s; }
+.category-collapsed .category-arrow { transform: rotate(-90deg); }
+.channel-collapsed { display: none !important; }
 
-/* ホバー時の背景 */
-.message-group:hover {
-    background-color: rgba(4, 4, 5, 0.07);
-}
-html.dark .message-group:hover {
-    background-color: rgba(2, 2, 2, 0.07);
-}
+.switch { position: relative; display: inline-block; width: 40px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #80848e; transition: .4s; border-radius: 24px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+input:checked + .slider { background-color: #3ba55c; }
+input:checked + .slider:before { transform: translateX(16px); }
 
-/* コンテンツテキストのフォントと色 */
-.message-content-text {
-    color: var(--text-primary);
-    font-size: 1rem;
-    line-height: 1.375rem;
-    overflow-wrap: break-word; /* 長い単語でレイアウト崩れを防ぐ */
-    word-break: break-word;    /* 必要なら単語の途中でも改行 */
-}
-
-/* アバター周りの微調整 */
-.avatar-decoration {
-    pointer-events: none;
-    z-index: 2;
-}
-
-/* ツールバーの位置と挙動 */
-.message-toolbar {
-    top: -12px !important; /* 少し上に浮かせる */
-    right: 16px;
-    z-index: 50;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(4px);
-    transition: all 0.1s ease-in-out;
-}
-.message-group:hover .message-toolbar {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-}
-
-/* 編集履歴（ログ） */
-.history-line {
-    font-size: 0.85em;
-    opacity: 0.6;
-    text-decoration: line-through;
-    display: block;
-    margin-bottom: 2px;
-}
-
-/* 返信の線 */
-.reply-spine {
-    border-color: var(--reply-spine-color);
-    left: -14px !important; /* 位置調整 */
-    top: 50% !important;
-    transform: translateY(-50%);
-    width: 28px !important;
-    height: 12px !important;
-    border-bottom: 0 !important;
-}
-
-/* 入力エリア修正 */
-#message-input {
-    min-height: 44px; /* 入力欄の高さを確保 */
-    max-height: 50vh;
-    overflow-y: auto;
-}
-
-/* メッセージツールバーの改善 */
-.message-toolbar { 
-    opacity: 0; pointer-events: none; 
-    transform: translateY(-4px); transition: all 0.1s; 
-    border: 1px solid var(--bg-tertiary);
-    background-color: var(--bg-primary);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-}
-.message-group:hover .message-toolbar { opacity: 1; transform: translateY(0); pointer-events: auto; }
-
-/* その他スタイル維持 */
-.folder-closed { width: 48px; height: 48px; border-radius: 24px; display: flex; flex-wrap: wrap; padding: 10px; gap: 4px; justify-content: center; align-items: center; cursor: pointer; transition: 0.2s; }
-.folder-icon-thumb { width: 10px; height: 10px; border-radius: 50%; object-fit: cover; }
-.channel-item.active { background-color: var(--active-bg); color: var(--text-primary); }
-.channel-item:hover:not(.active) { background-color: var(--hover-bg); }
-
-/* 入力エリア修正 */
-.input-field { outline: none; border: none; font-family: inherit; }
+.plugin-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--bg-quaternary); }
+.plugin-item:last-child { border-bottom: none; }
