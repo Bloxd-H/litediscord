@@ -52,12 +52,10 @@ html.dark {
     --folder-bg: rgba(88, 101, 242, 0.2);
 }
 
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background: var(--bg-quaternary); border-radius: 4px; }
-.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: var(--bg-tertiary); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background-color: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background-color: var(--bg-quaternary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--text-secondary); }
 
 #message-input::placeholder { color: var(--text-secondary); opacity: 0.7; }
 #message-input, .input-field { outline: none; border: none; }
@@ -93,7 +91,6 @@ html.dark {
     width: 48px; display: flex; align-items: center; justify-content: center; padding: 4px;
 }
 
-/* フォルダ内のサーバーは背景を青くする */
 .in-folder::after {
     content: ''; position: absolute; inset: -4px; 
     background-color: rgba(88, 101, 242, 0.1); 
@@ -120,8 +117,8 @@ html.dark {
 .avatar-decoration { 
     position: absolute; 
     top: 50%; left: 50%; 
-    width: 124%; height: 124%; /* 修正: デコレーション位置とサイズ */
-    transform: translate(-50%, -50%); /* 修正: 中央揃え */
+    width: 120%; height: 120%; 
+    transform: translate(-50%, -50%); 
     pointer-events: none; z-index: 20; 
     object-fit: contain;
 }
@@ -140,7 +137,6 @@ html.dark {
 .message-sending { opacity: 0.5; } 
 .message-failed .message-content-text { color: #ed4245; }
 
-/* Message Logger Styles */
 .deleted-text { color: #ed4245; }
 .history-line { font-size: 0.9em; color: var(--text-secondary); opacity: 0.8; text-decoration: line-through; display: block; margin-bottom: 2px; }
 .edited-tag { font-size: 0.625rem; color: var(--text-secondary); margin-left: 4px; user-select: none; }
@@ -150,6 +146,16 @@ html.dark {
     100% { background-color: transparent; }
 }
 .flash-highlight { animation: flash-yellow 1.5s ease-out forwards; }
+
+.reply-spine {
+    position: absolute;
+    top: 22px; left: 32px; width: 34px; height: 12px;
+    border-left: 2px solid var(--reply-spine-color);
+    border-top: 2px solid var(--reply-spine-color);
+    border-top-left-radius: 6px;
+    pointer-events: none;
+    z-index: 0;
+}
 
 .settings-tab-item {
     padding: 6px 12px; border-radius: 4px; cursor: pointer; color: var(--text-secondary); font-weight: 500;
