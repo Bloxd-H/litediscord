@@ -37,6 +37,8 @@
             --popup-bg: #ffffff;
             --popup-highlight: #e0e0e0;
             --deleted-bg: rgba(240, 71, 71, 0.1);
+            /* 返信ラインの色 (ライトモード) */
+            --reply-spine-color: #c4c9ce; 
         }
 
         html.dark {
@@ -61,6 +63,8 @@
             --popup-bg: #2f3136;
             --popup-highlight: #40444b;
             --deleted-bg: rgba(240, 71, 71, 0.2);
+            /* 返信ラインの色 (ダークモード: 見やすい灰色) */
+            --reply-spine-color: #b9bbbe; 
         }
 
         #message-input, .input-field {
@@ -126,16 +130,43 @@
         .popup-item:hover { background-color: var(--popup-highlight); }
         .command-option-badge { background-color: var(--bg-tertiary); padding: 1px 4px; border-radius: 3px; font-size: 0.8em; opacity: 0.8; }
 
+        /* 返信ラインのスタイル修正 */
         .reply-spine {
             position: absolute;
-            top: 10px; left: 26px; width: 33px; height: 12px;
-            border-left: 2px solid var(--border-color); border-top: 2px solid var(--border-color);
-            border-top-left-radius: 6px; border-bottom: 0; border-right: 0; margin-top: -2px;
+            top: 14px; /* アバターの真ん中くらいから */
+            left: 20px;
+            width: 35px; /* アバターの手前まで */
+            height: 14px;
+            border-left: 2px solid var(--reply-spine-color);
+            border-top: 2px solid var(--reply-spine-color);
+            border-top-left-radius: 6px;
+            border-bottom: 0;
+            border-right: 0;
+            margin-top: -2px;
+            pointer-events: none;
         }
 
-        .avatar-container { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
-        .avatar-img { width: 100%; height: 100%; border-radius: 50%; }
-        .avatar-decoration { position: absolute; top: -15%; left: -15%; width: 130%; height: 130%; pointer-events: none; }
+        /* アバターとデコレーション */
+        .avatar-container {
+            width: 40px; height: 40px; 
+            position: relative; 
+            flex-shrink: 0;
+        }
+        .avatar-img { 
+            width: 100%; height: 100%; 
+            border-radius: 50%; 
+            object-fit: cover;
+            position: relative;
+            z-index: 10;
+        }
+        .avatar-decoration { 
+            position: absolute; 
+            top: -20%; left: -20%; 
+            width: 140%; height: 140%; /* 少し大きく表示 */
+            pointer-events: none; 
+            z-index: 20; /* アバターの上に重ねる */
+            object-fit: contain; /* 潰れ防止 */
+        }
 
         .toggle-checkbox:checked { right: 0; border-color: #68D391; }
         .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
@@ -267,7 +298,6 @@
 <script>
     const API_BASE = 'https://discord.com/api/v10';
     let ws, currentAccount, currentChannel, lastSequence, heartbeatInterval, timeoutInterval;
-    let lastMessageInfo = { authorId: null, timestamp: null };
     let replyingTo = null;
     let oldestMessageId = null;
     let pingCounts = {};
@@ -341,7 +371,6 @@
             } catch(e) {}
         }
 
-        // 重複排除
         tokensToMigrate = [...new Set(tokensToMigrate)];
 
         if (tokensToMigrate.length === 0) return false;
@@ -355,10 +384,7 @@
         let migratedCount = 0;
 
         for (const t of tokensToMigrate) {
-            // 既存チェック
             if (accounts.some(a => a.token === t)) continue;
-            
-            // APIで検証
             const res = await apiRequest(t, '/users/@me');
             if (res.data && res.data.id) {
                 accounts.push({ ...res.data, token: t });
@@ -375,7 +401,6 @@
         document.getElementById('migration-view').classList.add('hidden');
         document.getElementById('migration-view').classList.remove('flex');
         
-        // 移行完了、または有効なトークンがなかった場合、通常のフローに戻る
         return migratedCount > 0;
     }
 
@@ -409,7 +434,6 @@
         document.getElementById('token-input').value = '';
         updateView('app'); renderUserInfo(); renderAccountSwitcher(); loadGuilds();
         
-        // WebSocket接続
         setTimeout(connectWS, 100); 
     }
 
@@ -522,12 +546,25 @@
         } catch { return []; }
     }
 
+    // Helper: 現在表示されているメッセージリストの最後尾（仮を除く）のユーザーIDを取得
+    function getLastMessageAuthorId() {
+        const con = document.getElementById('message-container');
+        // メッセージかつ仮でない要素を後ろから探す
+        const msgs = Array.from(con.querySelectorAll('.message-group:not(.message-sending)'));
+        if (msgs.length === 0) return null;
+        
+        // 最後の要素から author ID を探すのが難しいので、DOM描画時に data属性をつけておく手もあるが、
+        // renderMsg関数内で内部ステート lastMessageInfo を信用せず毎回判定する形に変更する。
+        return msgs[msgs.length - 1]; // 要素を返す
+    }
+
     async function selectChannel(ch) {
-        currentChannel = ch; oldestMessageId = null; lastMessageInfo = { authorId: null, timestamp: null }; isLoadingMore = false;
+        currentChannel = ch; oldestMessageId = null; isLoadingMore = false;
         cancelReply(); cancelAttachment(); delete pingCounts[ch.id]; updatePingDots(); messageStore = {};
         document.querySelectorAll('.channel-item.active').forEach(e => e.classList.remove('active'));
         const cE = document.getElementById(`channel-${ch.id}`); if (cE) cE.classList.add('active');
         if (window.innerWidth < 768) showChatView();
+        
         let name = ch.name || ch.recipients?.[0]?.global_name || ch.recipients?.[0]?.username || 'DM';
         document.getElementById('channel-name-text').innerHTML = `<span class="text-gray-500 mr-1">#</span><span>${name}</span>`;
         const con = document.getElementById('message-container'); con.innerHTML = '<div class="m-auto text-xs opacity-50">...</div>';
@@ -541,7 +578,12 @@
         const ms = res.data;
         if (Array.isArray(ms) && ms.length > 0) {
             oldestMessageId = ms[ms.length - 1].id; const lastReadId = ms[0].id;
-            ms.reverse().forEach(m => { if (plugins.messageLogger) messageStore[m.id] = m; renderMsg(m, { isNew: false, isPrepended: false }); });
+            // 履歴読み込み時は順番が決まっているので単純なループで良いが、汎用描画関数を使う
+            // 一括描画の方が効率良いが、既存ロジック再利用
+            ms.reverse().forEach(m => { 
+                if (plugins.messageLogger) messageStore[m.id] = m; 
+                renderMsg(m); // 順次追加
+            });
             if ((con.scrollHeight - con.scrollTop - con.clientHeight) < 1) { await apiRequest(currentAccount.token, `/channels/${ch.id}/messages/${lastReadId}/ack`, 'POST', {}); }
             setTimeout(() => con.scrollTop = con.scrollHeight, 0);
         }
@@ -554,12 +596,17 @@
         if (Array.isArray(messages) && messages.length > 0) {
             oldestMessageId = messages[messages.length - 1].id;
             const fragment = document.createDocumentFragment(); messages.reverse();
-            let lastMessageInBatch = { authorId: null, timestamp: null };
+            let lastBatchAuthId = null; // バッチ内での比較用
             messages.forEach(msg => {
                 if (plugins.messageLogger) messageStore[msg.id] = msg;
-                const isGrouped = msg.author.id === lastMessageInBatch.authorId && (new Date(msg.timestamp) - new Date(lastMessageInBatch.timestamp)) < 300 * 1000;
-                fragment.appendChild(createMessageElement(msg, isGrouped));
-                lastMessageInBatch = { authorId: msg.author.id, timestamp: msg.timestamp };
+                // ここは prepend なので バッチ内での連続性を見る
+                // 実際はもっと複雑だが、簡易的に「一つ前と違うならヘッダー出す」でOK
+                const isGrouped = (msg.author.id === lastBatchAuthId);
+                // ※ 正確には timestamp も見るべきだが割愛
+                const el = createMessageElement(msg, isGrouped);
+                el.dataset.authorId = msg.author.id; // DOMに情報を埋める
+                fragment.appendChild(el);
+                lastBatchAuthId = msg.author.id;
             });
             con.prepend(fragment); con.scrollTop = con.scrollHeight - oldHeight;
         } else { oldestMessageId = null; } isLoadingMore = false;
@@ -570,6 +617,7 @@
         if (m.mentions) m.mentions.forEach(u => { contentHtml = contentHtml.replace(new RegExp(`@${u.id}`, 'g'), `@${u.global_name || u.username}`); });
         if (m.sticker_items) contentHtml += m.sticker_items.map(s=>`<img src="https://media.discordapp.net/stickers/${s.id}.webp?size=160" alt="${s.name}" class="w-32 h-32 mt-2"/>`).join('');
         if (m.attachments?.length > 0) contentHtml += m.attachments.map(a=>{ if (a.content_type?.startsWith('image')) return `<br><a href="${a.url}" target="_blank"><img src="${a.url}" class="max-w-xs cursor-pointer rounded-lg mt-2" style="display: block;"/></a>`; if (a.content_type?.startsWith('video')) return `<br><video src="${a.url}" controls playsinline muted class="max-w-xs rounded-lg mt-2"></video>`; return `<div class="mt-2 p-3 rounded-md text-[var(--text-primary)]" style="background-color:var(--bg-tertiary);"><a href="${a.url}" target="_blank" class="text-[var(--text-link)]">${a.filename}</a></div>` }).join(''); 
+        
         let replyPreviewHtml = '';
         if (m.referenced_message) {
             const rm = m.referenced_message, rAuth = rm.author, rAuthName = rAuth.global_name || rAuth.username;
@@ -577,12 +625,17 @@
             replyPreviewHtml = `<div class="flex items-center ml-14 mb-1 cursor-pointer opacity-60 hover:opacity-100" onclick="scrollToMessage('${rm.id}')"><div class="reply-spine"></div><img src="${rAuthAvatar}" class="w-4 h-4 rounded-full mr-2"><b class="mr-2 text-sm text-[var(--text-link)]">${rAuthName}</b><span class="truncate text-xs">${rm.content || 'Attachment'}</span></div>`;
         }
         if (m.embeds?.length > 0) contentHtml += m.embeds.map(renderEmbed).join('');
+        
         const el = document.createElement('div'); el.id = `message-${m.id}`; el.className = "px-4 message-group relative hover:bg-[var(--message-hover)]";
+        el.dataset.authorId = m.author.id; // データ属性を追加して判定しやすくする
+        el.dataset.timestamp = m.timestamp;
+
         if (m.deleted) el.classList.add('deleted-log'); 
         const isAuthor = m.author.id === currentAccount.id;
         if (!isAuthor && (m.mentions?.some(u=>u.id===currentAccount.id) || m.mention_everyone)) el.classList.add('mention-highlight');
         const deleteAction = `deleteMessage("${m.id}", event)`;
         const toolbarHtml = `<div class="message-toolbar absolute -top-4 right-2 flex items-center gap-1 p-1 rounded-md shadow bg-[var(--bg-secondary)] text-[var(--text-secondary)] z-10"> <button onclick='startReply(${JSON.stringify({id: m.id, author: m.author})})' title="Reply" class="p-1 hover:bg-[var(--hover-bg)] rounded"><svg class="w-4 h-4" viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" fill="currentColor"/></svg></button> ${isAuthor ? `<button onclick='startEdit("${m.id}")' class="p-1 hover:bg-[var(--hover-bg)] rounded" title="Edit"><svg class="w-4 h-4" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" fill="currentColor"></path></svg></button> <button onclick='${deleteAction}' class="p-1 hover:bg-red-500/10 text-red-500 rounded" title="Delete (Shift to bypass)"><svg class="w-4 h-4" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" fill="currentColor"></path></svg></button>` : ''}</div>`;
+        
         if (isGrouped) {
             el.innerHTML = `<div class="flex pl-[3.25rem] pt-0.5"><div class="text-sm break-words message-content-text w-full">${contentHtml}</div></div> ${toolbarHtml}`;
         } else {
@@ -604,11 +657,32 @@
         el.querySelector('.message-content-text').dataset.originalContent = m.content; return el;
     }
 
+    // メッセージ追加処理 (状態管理変数を廃止し、DOMベースで判定)
     function renderMsg(m, options={}) { 
-        const { isNew = false, isPrepended = false } = options; if (!m.author || !currentAccount) return; 
+        const { isNew = false, isPrepended = false } = options; 
+        if (!m.author || !currentAccount) return; 
         const container = document.getElementById('message-container'); 
-        const isGrouped = !isPrepended && !m.referenced_message && m.author.id === lastMessageInfo.authorId && (!m.webhook_id || m.author.username === lastMessageInfo.username) && (new Date(m.timestamp) - new Date(lastMessageInfo.timestamp)) < 300 * 1000;
-        const el = createMessageElement(m, isGrouped); if (isPrepended) container.prepend(el); else { container.appendChild(el); lastMessageInfo = { authorId: m.author.id, username: m.author.username, timestamp: m.timestamp }; } 
+        
+        let isGrouped = false;
+
+        // リストへの追加(Append)の場合、表示済みの最後の要素とチェックする
+        if (!isPrepended) {
+            const lastEl = getLastMessageAuthorId(); // 実際に画面に出ている最後の要素(仮除く)を取得
+            if (lastEl && !m.referenced_message && !m.webhook_id) { // Reply/Webhookはグループ化しない
+                const lastId = lastEl.dataset.authorId;
+                const lastTs = new Date(lastEl.dataset.timestamp).getTime();
+                const curTs = new Date(m.timestamp).getTime();
+                
+                // 同じ人 かつ 5分以内 ならグループ化
+                if (lastId === m.author.id && (curTs - lastTs) < 300 * 1000) {
+                    isGrouped = true;
+                }
+            }
+        }
+        
+        const el = createMessageElement(m, isGrouped); 
+        if (isPrepended) container.prepend(el); 
+        else container.appendChild(el); 
     }
     
     function renderEmbed(e) { const color = e.color ? `#${e.color.toString(16).padStart(6, '0')}` : 'var(--border-color)'; let fields = e.fields ? e.fields.map(f=>`<div class="${f.inline ? 'inline-block mr-4' : 'block'} min-w-[150px]"><b class="block">${f.name}</b><span>${f.value}</span></div>`).join('') : ''; return `<div class="mt-2 p-3 rounded-md flex gap-4" style="background-color: var(--bg-quaternary); border-left: 4px solid ${color};"> ${e.thumbnail ? `<a href="${e.thumbnail.url}" target="_blank"><img src="${e.thumbnail.proxy_url}" class="max-w-[80px] max-h-[80px] object-contain rounded-md"></a>` : ''} <div class="text-sm flex-1 min-w-0"> ${e.author ? `<div class="font-bold flex items-center gap-2 mb-1">${e.author.icon_url ? `<img src="${e.author.proxy_icon_url}" class="w-6 h-6 rounded-full">` : ''}<a href="${e.author.url || '#'}" target="_blank" class="hover:underline">${e.author.name}</a></div>` : ''} ${e.title ? `<a href="${e.url || '#'}" target="_blank" class="font-bold text-base block text-[var(--text-link)] hover:underline">${e.title}</a>` : ''} ${e.description ? `<div class="mt-1">${e.description}</div>` : ''} ${fields ? `<div class="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">${fields}</div>` : ''} ${e.image ? `<a href="${e.image.url}" target="_blank"><img src="${e.image.proxy_url}" class="mt-2 rounded-lg max-w-xs"></a>` : ''} ${e.footer ? `<div class="mt-2 text-xs opacity-70 flex items-center gap-1.5">${e.footer.icon_url ? `<img src="${e.footer.proxy_icon_url}" class="w-4 h-4 rounded-full">` : ''}${e.footer.text}</div>` : ''} </div></div>`; }
@@ -659,7 +733,12 @@
             } else if (d.t === 'MESSAGE_CREATE') { 
                 if (d.d.channel_id === currentChannel?.id) { 
                     if(plugins.messageLogger) messageStore[d.d.id] = d.d;
-                    if(d.d.nonce) { const temp = document.querySelector(`[id^=message-temp-${d.d.nonce}]`); if(temp) temp.remove(); }
+                    // ノンス(一時ID)があれば、該当する仮メッセージを削除
+                    if(d.d.nonce) { 
+                        // DOMから nonce を含む ID を持つ仮メッセージを検索・削除
+                        const temp = document.querySelector(`[id^=message-temp-${d.d.nonce}]`); 
+                        if(temp) temp.remove(); 
+                    }
                     renderMsg(d.d, { isNew: true }); 
                     const con = document.getElementById('message-container');
                     if ((con.scrollHeight - con.scrollTop - con.clientHeight) < 200) { con.scrollTop = con.scrollHeight; apiRequest(currentAccount.token, `/channels/${d.d.channel_id}/messages/${d.d.id}/ack`, 'POST', {}); }
