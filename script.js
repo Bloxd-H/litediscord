@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('back-to-channels-btn').onclick = showSidebarView;
     document.getElementById('open-settings-btn').onclick = renderSettingsModal;
     document.getElementById('add-account-switcher-btn').onclick = () => { document.getElementById('account-switcher').classList.add('hidden'); showLoginScreen(); };
-    
+    document.getElementById('message-container').addEventListener('scroll', loadMoreMessages);
     window.addEventListener('resize', handleResize);
 
     const accounts = getAccounts();
