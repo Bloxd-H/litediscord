@@ -68,7 +68,7 @@ html.dark {
     cursor: pointer; transition: all 0.2s cubic-bezier(0,0,0,1);
     background-color: var(--bg-primary);
     display: flex; align-items: center; justify-content: center;
-    position: relative; overflow: visible; /* Decoration overflow */
+    position: relative; overflow: visible; 
 }
 .server-icon img { border-radius: 50%; transition: border-radius 0.2s; }
 .server-icon:hover, .server-icon.active { border-radius: 16px; }
@@ -78,7 +78,6 @@ html.dark {
     background-color: var(--text-primary); border-radius: 0 4px 4px 0; transition: height 0.2s;
 }
 
-/* フォルダ */
 .folder-closed {
     width: 48px; height: 48px; border-radius: 24px;
     background-color: var(--folder-bg); cursor: pointer;
@@ -93,9 +92,8 @@ html.dark {
     background-color: transparent !important; color: var(--text-secondary);
     width: 48px; display: flex; align-items: center; justify-content: center; padding: 4px;
 }
-.folder-content { margin: 8px 0; display: flex; flex-col; gap: 8px; }
 
-/* フォルダ内のサーバーは背景がちょっと青い */
+/* フォルダ内のサーバーは背景を青くする */
 .in-folder::after {
     content: ''; position: absolute; inset: -4px; 
     background-color: rgba(88, 101, 242, 0.1); 
@@ -110,7 +108,6 @@ html.dark {
 .channel-item.active { background-color: var(--active-bg); color: var(--text-primary); }
 .channel-item:hover:not(.active) { background-color: var(--hover-bg); color: var(--text-primary); }
 
-/* アバターとデコレーション */
 .avatar-container {
     width: 40px; height: 40px; margin-top: 2px;
     position: relative; flex-shrink: 0;
@@ -123,13 +120,12 @@ html.dark {
 .avatar-decoration { 
     position: absolute; 
     top: 50%; left: 50%; 
-    width: 120%; height: 120%; /* 大きさ調整 */
-    transform: translate(-50%, -50%); /* 真ん中合わせ */
+    width: 124%; height: 124%; /* 修正: デコレーション位置とサイズ */
+    transform: translate(-50%, -50%); /* 修正: 中央揃え */
     pointer-events: none; z-index: 20; 
     object-fit: contain;
 }
 
-/* ユーザーパネルも同様に修正 */
 #user-info-panel .avatar-container, #user-info-panel .relative { overflow: visible; }
 #user-info-panel .avatar-decoration { top: 50%; left: 50%; width: 124%; height: 124%; transform: translate(-50%, -50%); }
 
@@ -141,16 +137,14 @@ html.dark {
 
 .message-content-text { user-select: text; overflow-wrap: break-word; line-height: 1.375rem; color: var(--text-primary); }
 
-/* 送信ステータス */
 .message-sending { opacity: 0.5; } 
 .message-failed .message-content-text { color: #ed4245; }
 
-/* Deleted / Edited */
+/* Message Logger Styles */
 .deleted-text { color: #ed4245; }
-.history-line { font-size: 0.85rem; color: var(--text-secondary); opacity: 0.7; text-decoration: line-through; display: block; }
+.history-line { font-size: 0.9em; color: var(--text-secondary); opacity: 0.8; text-decoration: line-through; display: block; margin-bottom: 2px; }
 .edited-tag { font-size: 0.625rem; color: var(--text-secondary); margin-left: 4px; user-select: none; }
 
-/* Highlight for Reply Jump */
 @keyframes flash-yellow {
     0%, 20% { background-color: rgba(250, 166, 26, 0.2); }
     100% { background-color: transparent; }
@@ -163,7 +157,6 @@ html.dark {
 .settings-tab-item:hover { background-color: var(--hover-bg); color: var(--text-primary); }
 .settings-tab-item.active { background-color: var(--active-bg); color: var(--text-primary); cursor: default; }
 
-/* General Theme Cards */
 .theme-card {
     width: 140px; height: 90px;
     border-radius: 8px; cursor: pointer;
@@ -183,7 +176,6 @@ html.dark {
 .category-collapsed .category-arrow { transform: rotate(-90deg); }
 .channel-collapsed { display: none !important; }
 
-/* Switch Slider */
 .switch { position: relative; display: inline-block; width: 40px; height: 24px; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #80848e; transition: .4s; border-radius: 24px; }
@@ -191,6 +183,5 @@ html.dark {
 input:checked + .slider { background-color: #3ba55c; }
 input:checked + .slider:before { transform: translateX(16px); }
 
-/* Vencord-like Plugin Item */
 .plugin-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--bg-quaternary); }
 .plugin-item:last-child { border-bottom: none; }
