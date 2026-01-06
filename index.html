@@ -105,11 +105,9 @@
         .message-group.mention-highlight { background-color: var(--mention-bg-highlight); position: relative; }
         .message-group.mention-highlight::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background-color: var(--mention-border-highlight); }
         
-        /* 削除されたメッセージのスタイル */
         .message-group.deleted-log { background-color: var(--deleted-bg); }
         .edited-log { opacity: 0.6; font-size: 0.9em; text-decoration: line-through; display: block; margin-bottom: 2px; }
 
-        /* 送信中メッセージ */
         .message-sending { opacity: 0.5; }
         .message-failed { color: #f04747; opacity: 1; }
 
@@ -128,7 +126,6 @@
         .popup-item:hover { background-color: var(--popup-highlight); }
         .command-option-badge { background-color: var(--bg-tertiary); padding: 1px 4px; border-radius: 3px; font-size: 0.8em; opacity: 0.8; }
 
-        /* 返信の線修正 */
         .reply-spine {
             position: absolute;
             top: 10px;
@@ -143,12 +140,10 @@
             margin-top: -2px;
         }
 
-        /* アバターデコレーション */
         .avatar-container { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
         .avatar-img { width: 100%; height: 100%; border-radius: 50%; }
         .avatar-decoration { position: absolute; top: -15%; left: -15%; width: 130%; height: 130%; pointer-events: none; }
 
-        /* スイッチトグル */
         .toggle-checkbox:checked { right: 0; border-color: #68D391; }
         .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
         .toggle-label { width: 40px; height: 20px; background-color: #ccc; border-radius: 9999px; position: relative; cursor: pointer; transition: background-color 0.2s; }
@@ -178,6 +173,12 @@
 
     <!-- Auth Section -->
     <div id="auth-section" class="w-full max-w-md m-auto p-8 rounded-lg shadow-xl flex-col bg-white dark:bg-gray-700 hidden">
+        <!-- マイグレーション中のローディング表示を追加 -->
+        <div id="migration-view" class="hidden flex-col items-center justify-center">
+            <div class="loader mb-4"></div>
+            <div class="text-sm font-bold">以前のアカウントデータを移行中...</div>
+        </div>
+
         <div id="account-selection-view" class="hidden flex-col">
             <h1 class="text-2xl font-bold text-center mb-6">おかえりなさい！</h1>
             <div id="saved-accounts-list" class="space-y-2 mb-4 max-h-80 overflow-y-auto"></div>
@@ -211,7 +212,6 @@
                 <div id="dm-icon" title="DM" class="server-icon bg-indigo-600 flex items-center justify-center cursor-pointer text-white font-black text-xl mb-1 hover:bg-indigo-500 transition-all duration-200">DM</div>
                 <div id="guild-list" class="flex flex-col items-center gap-2 w-full"></div>
                 <div class="mt-auto flex flex-col gap-2 pt-4">
-                    <!-- Settings Button -->
                     <button id="settings-btn" class="server-icon bg-gray-600 hover:bg-gray-700 text-white flex items-center justify-center" title="設定">
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path></svg>
                     </button>
@@ -292,7 +292,7 @@
         sendSeconds: false,
         messageLogger: false
     };
-    let messageStore = {}; // For Logger
+    let messageStore = {}; 
 
     const sunIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`;
     const moonIcon = `<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>`;
@@ -313,7 +313,7 @@
         document.getElementById('channel-list').innerHTML = '';
         document.getElementById('message-container').innerHTML = '';
         document.getElementById('guild-name').innerText = '';
-        messageStore = {}; // Clear log cache on channel/server switch
+        messageStore = {}; 
         cancelReply(); cancelAttachment();
     }
 
@@ -324,7 +324,7 @@
         }
         try {
             const r = await fetch(`${API_BASE}${path}`, o);
-            if (r.status === 401) { handleSessionInvalid(); return { error: { message: "Unauthorized" }, status: 401 }; }
+            if (r.status === 401) { return { error: { message: "Unauthorized" }, status: 401 }; }
             const data = r.status === 204 ? {} : await r.json();
             if (!r.ok) { return { error: data, status: r.status }; }
             return { data, status: r.status };
@@ -334,7 +334,65 @@
         }
     }
 
-    function handleSessionInvalid() { if (!currentAccount) return; cleanupState(); showLoginScreen(currentAccount); }
+    // 古い形式(localStorage.token / localStorage.tokens)を検出し移行する
+    async function migrateOldData() {
+        const oldToken = localStorage.getItem('token');
+        const oldTokensMap = localStorage.getItem('tokens');
+        let tokensToMigrate = [];
+
+        if (oldToken && oldToken.trim().length > 0) {
+            tokensToMigrate.push(oldToken.replace(/^"|"$/g, ''));
+        }
+        if (oldTokensMap) {
+            try {
+                const parsed = JSON.parse(oldTokensMap);
+                Object.values(parsed).forEach(t => tokensToMigrate.push(t.replace(/^"|"$/g, '')));
+            } catch(e) {}
+        }
+
+        // 重複排除
+        tokensToMigrate = [...new Set(tokensToMigrate)];
+
+        if (tokensToMigrate.length === 0) return false;
+
+        document.getElementById('auth-section').classList.remove('hidden');
+        document.getElementById('auth-section').classList.add('flex');
+        document.getElementById('migration-view').classList.remove('hidden');
+        document.getElementById('migration-view').classList.add('flex');
+
+        let accounts = getAccounts();
+        let migratedCount = 0;
+
+        for (const t of tokensToMigrate) {
+            // 既存チェック
+            if (accounts.some(a => a.token === t)) continue;
+            
+            // APIで検証
+            const res = await apiRequest(t, '/users/@me');
+            if (res.data && res.data.id) {
+                accounts.push({ ...res.data, token: t });
+                migratedCount++;
+            }
+        }
+
+        if (migratedCount > 0) {
+            saveAccounts(accounts);
+            localStorage.removeItem('token');
+            localStorage.removeItem('tokens');
+        }
+
+        document.getElementById('migration-view').classList.add('hidden');
+        document.getElementById('migration-view').classList.remove('flex');
+        
+        // 移行完了、または有効なトークンがなかった場合、通常のフローに戻る
+        return migratedCount > 0;
+    }
+
+    function handleSessionInvalid() { 
+        if (!currentAccount) return; 
+        cleanupState(); 
+        showLoginScreen(currentAccount); 
+    }
 
     async function addAccount(token) {
         document.getElementById('login-error').innerText = "";
@@ -356,10 +414,11 @@
         const a = getAccounts().find(a => a.id === id);
         if (!a) { showLoginScreen(); return }
         currentAccount = a;
-        // Nitro Check (Type 2 is Nitro)
         maxCharCount = (currentAccount.premium_type === 2) ? 4000 : 2000;
         document.getElementById('token-input').value = '';
         updateView('app'); renderUserInfo(); renderAccountSwitcher(); loadGuilds();
+        
+        // WebSocket接続
         setTimeout(connectWS, 100); 
     }
 
@@ -400,7 +459,7 @@
             row.querySelector('input').onchange = (e) => {
                 plugins[p.key] = e.target.checked;
                 localStorage.setItem('plugins', JSON.stringify(plugins));
-                if (currentChannel) selectChannel(currentChannel); // Refresh view
+                if (currentChannel) selectChannel(currentChannel); 
             };
             list.appendChild(row);
         });
@@ -409,8 +468,14 @@
 
     async function loadGuilds() {
         if (!currentAccount) return;
-        const { data: g } = await apiRequest(currentAccount.token, '/users/@me/guilds');
-        if (!g) return;
+        const res = await apiRequest(currentAccount.token, '/users/@me/guilds');
+        // 401の場合は apiRequest 内で handleSessionInvalid が呼ばれるが
+        // ここでもエラーチェックして停止させる
+        if (res.error) {
+            if (res.status === 401) handleSessionInvalid();
+            return;
+        }
+        const g = res.data;
         const l = document.getElementById('guild-list'); l.innerHTML = '';
         g.forEach(s => {
             let el = document.createElement('div'); el.id = `guild-${s.id}`; el.className = 'server-icon cursor-pointer w-12 h-12'; el.title = s.name; el.onclick = () => loadChannels(s, el);
@@ -494,7 +559,11 @@
 
         const res = await apiRequest(currentAccount.token, `/channels/${ch.id}/messages?limit=100`);
         con.innerHTML = '';
-        if (res.error) { con.innerHTML = `<div class="m-auto text-center p-4"><div class="text-red-500 font-bold mb-2">Error</div><div>${res.error.message}</div></div>`; return; }
+        if (res.error) { 
+            con.innerHTML = `<div class="m-auto text-center p-4"><div class="text-red-500 font-bold mb-2">Error</div><div>${res.error.message}</div></div>`; 
+            if(res.status === 401) handleSessionInvalid();
+            return; 
+        }
 
         const ms = res.data;
         if (Array.isArray(ms) && ms.length > 0) {
@@ -542,37 +611,32 @@
 
         const el = document.createElement('div'); el.id = `message-${m.id}`; el.className = "px-4 message-group relative hover:bg-[var(--message-hover)]";
         
-        if (m.deleted) el.classList.add('deleted-log'); // Message Logger Style
+        if (m.deleted) el.classList.add('deleted-log'); 
 
         const isAuthor = m.author.id === currentAccount.id;
         if (!isAuthor && (m.mentions?.some(u=>u.id===currentAccount.id) || m.mention_everyone)) el.classList.add('mention-highlight');
 
-        const deleteAction = `deleteMessage("${m.id}", event)`; // Pass event for shift check
+        const deleteAction = `deleteMessage("${m.id}", event)`;
 
         const toolbarHtml = `<div class="message-toolbar absolute -top-4 right-2 flex items-center gap-1 p-1 rounded-md shadow bg-[var(--bg-secondary)] text-[var(--text-secondary)] z-10"> <button onclick='startReply(${JSON.stringify({id: m.id, author: m.author})})' title="Reply" class="p-1 hover:bg-[var(--hover-bg)] rounded"><svg class="w-4 h-4" viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" fill="currentColor"/></svg></button> ${isAuthor ? `<button onclick='startEdit("${m.id}")' class="p-1 hover:bg-[var(--hover-bg)] rounded" title="Edit"><svg class="w-4 h-4" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" fill="currentColor"></path></svg></button> <button onclick='${deleteAction}' class="p-1 hover:bg-red-500/10 text-red-500 rounded" title="Delete (Shift to bypass)"><svg class="w-4 h-4" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" fill="currentColor"></path></svg></button>` : ''}</div>`;
 
-        // Webhook check for grouping: Same ID but different name = not grouped
         if (isGrouped) {
             el.innerHTML = `<div class="flex pl-[3.25rem] pt-0.5"><div class="text-sm break-words message-content-text w-full">${contentHtml}</div></div> ${toolbarHtml}`;
         } else {
-            // Identity Resolution
             const member = m.member || {}; 
             const serverNick = member.nick || m.author.global_name || m.author.username;
             const usernameDisplay = plugins.showMeYourName ? ` <span class="text-xs opacity-60">(${m.author.username})</span>` : '';
             const botTag = m.author.bot ? `<span class="bg-blue-500 text-white text-[10px] px-1 rounded ml-1 align-middle">BOT</span>` : '';
             
-            // Avatar logic
             let avatarUrl = m.author.avatar ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${m.author.discriminator % 5}.png`;
             if (member.avatar) avatarUrl = `https://cdn.discordapp.com/guilds/${currentChannel.guild_id}/users/${m.author.id}/avatars/${member.avatar}.png?size=64`;
             
-            // Decoration
             let decoHtml = '';
             if (m.author.avatar_decoration_data) {
                 const decoUrl = `https://cdn.discordapp.com/avatar-decoration-presets/${m.author.avatar_decoration_data.asset}.png?size=64`;
                 decoHtml = `<img src="${decoUrl}" class="avatar-decoration">`;
             }
 
-            // Timestamp
             const date = new Date(m.timestamp);
             const timeStr = plugins.sendSeconds ? date.toLocaleTimeString() : date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
@@ -596,7 +660,6 @@
                 ${toolbarHtml}`;
         }
         
-        // Log Logic (Edited)
         if (m.edited_timestamp && plugins.messageLogger && m.old_content) {
              const contentEl = el.querySelector('.message-content-text');
              contentEl.innerHTML = `<span class="edited-log">${m.old_content}</span>` + contentEl.innerHTML + '<span class="text-[10px] opacity-50 ml-1">(edited)</span>';
@@ -613,7 +676,6 @@
         if (!m.author || !currentAccount) return; 
         const container = document.getElementById('message-container'); 
         
-        // Grouping logic fix: break if reply OR webhook with diff name
         const isGrouped = !isPrepended 
             && !m.referenced_message 
             && m.author.id === lastMessageInfo.authorId 
@@ -637,13 +699,9 @@
         if (replyingTo) payload.message_reference = { message_id: replyingTo.messageId };
         if (attachedFile) return sendMessageWithFile(payload);
         
-        // Optimistic UI
         const tempId = `temp-${nonce}`;
         const tempMsg = {
-            id: tempId,
-            content: content,
-            author: currentAccount,
-            timestamp: new Date().toISOString(),
+            id: tempId, content: content, author: currentAccount, timestamp: new Date().toISOString(), nonce: nonce,
             referenced_message: replyingTo ? { id: replyingTo.messageId, author: replyingTo.author, content: 'Replying...' } : null
         };
         renderMsg(tempMsg);
@@ -655,14 +713,10 @@
         const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages`, 'POST', payload);
         if (res.error) {
             if(tempEl) {
-                tempEl.classList.remove('message-sending');
-                tempEl.classList.add('message-failed');
+                tempEl.classList.remove('message-sending'); tempEl.classList.add('message-failed');
                 tempEl.onclick = () => { input.value = content; tempEl.remove(); handleInput(); };
             }
             renderClydeError(res.error.message || '送信失敗');
-        } else {
-            // Success handled by WS usually, but remove temp if needed
-            if(tempEl) tempEl.remove(); // WS will add real one, or we replace. For simplicity, remove temp when WS comes.
         }
     }
     
@@ -699,7 +753,6 @@
             } else if (d.t === 'MESSAGE_CREATE') { 
                 if (d.d.channel_id === currentChannel?.id) { 
                     if(plugins.messageLogger) messageStore[d.d.id] = d.d;
-                    // Remove optimistic temporary message if exists (simple check by nonce)
                     if(d.d.nonce) { const temp = document.querySelector(`[id^=message-temp-${d.d.nonce}]`); if(temp) temp.remove(); }
                     renderMsg(d.d, { isNew: true }); 
                     const con = document.getElementById('message-container');
@@ -718,15 +771,13 @@
             } else if (d.t === 'MESSAGE_UPDATE' && d.d.channel_id === currentChannel?.id) { 
                 const el = document.getElementById(`message-${d.d.id}`); 
                 if (el && d.d.content !== undefined) { 
-                    // Logger logic
                     if (plugins.messageLogger && messageStore[d.d.id]) {
                         const oldContent = messageStore[d.d.id].content;
-                        if(oldContent !== d.d.content) d.d.old_content = oldContent; // Store old
-                        messageStore[d.d.id].content = d.d.content; // Update cache
+                        if(oldContent !== d.d.content) d.d.old_content = oldContent; 
+                        messageStore[d.d.id].content = d.d.content; 
                     }
-                    // Re-render whole message to apply new content/edited tag
                     const newMsg = { ...messageStore[d.d.id] || {}, ...d.d, author: (messageStore[d.d.id]||{}).author || d.d.author }; 
-                    if(newMsg.author) el.outerHTML = createMessageElement(newMsg, false).outerHTML; // Simplified re-render
+                    if(newMsg.author) el.outerHTML = createMessageElement(newMsg, false).outerHTML; 
                 } 
             } 
         }; 
@@ -781,7 +832,7 @@
     
     function updateView(state) { const a = document.getElementById('auth-section'), m = document.getElementById('main-app'); if (state === 'auth') { a.classList.remove('hidden'); a.classList.add('flex'); m.classList.add('hidden'); } else { a.classList.add('hidden'); a.classList.remove('flex'); m.classList.remove('hidden'); m.classList.add('flex'); handleResize(); } }
     function showLoginScreen(reloginAccount = null) {
-        updateView('auth'); const listContainer = document.getElementById('saved-accounts-list'); const accounts = getAccounts();
+        updateView('auth'); const accounts = getAccounts();
         if (reloginAccount) showTokenInput(reloginAccount); else if (accounts.length > 0) { document.getElementById('account-selection-view').classList.remove('hidden'); document.getElementById('account-selection-view').classList.add('flex'); document.getElementById('token-input-view').classList.add('hidden'); renderSavedAccountsList(); } else showTokenInput(null);
     }
     function renderSavedAccountsList() {
@@ -835,9 +886,17 @@
         con.appendChild(el); con.scrollTop = con.scrollHeight;
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        applyTheme(); const a = getAccounts(); let i = getActiveAccountId();
+    document.addEventListener('DOMContentLoaded', async () => {
+        applyTheme();
+        
+        // 移行処理（旧トークンがあれば自動移行してログイン試行）
+        const migrated = await migrateOldData();
+        if (migrated) return; // 移行成功時は内部でswitchAccountされるので終了
+
+        const a = getAccounts(); 
+        let i = getActiveAccountId();
         if (a.length > 0 && a.find(acc => acc.id === i)) { switchAccount(i); } else { showLoginScreen(); }
+
         document.getElementById('add-account-button').onclick = () => addAccount(document.getElementById('token-input').value);
         document.getElementById('dm-icon').onclick = e => loadDms(e.currentTarget);
         document.getElementById('send-button').onclick = sendMessage;
