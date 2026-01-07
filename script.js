@@ -1,23 +1,18 @@
 const API_BASE = 'https://discord.com/api/v10';
-let ws = null;
-let currentAccount = null;
-let currentChannel = null;
-let lastSequence = null;
-let heartbeatInterval = null;
-let timeoutInterval = null;
+let ws = null, currentAccount = null, currentChannel = null;
+let lastSequence = null, heartbeatInterval = null, timeoutInterval = null;
 let replyingTo = null;
 let oldestMessageId = null;
 let isLoadingMore = false;
 let attachedFile = null;
 let commandDebounce = null;
 let memberDebounce = null;
-let maxCharCount = 2000;
 let guildFolders = [];
 let guildDataMap = new Map();
-let openFolderId = null; 
 let pingCounts = {};
-let messageStore = {}; 
-let editedMessages = {}; 
+let messageStore = {};
+let editedMessages = {};
+let isUserAtBottom = true; 
 
 const plugins = JSON.parse(localStorage.getItem('plugins')) || {
     showMeYourName: false,
@@ -27,6 +22,17 @@ const plugins = JSON.parse(localStorage.getItem('plugins')) || {
     showCharacter: true
 };
 
+const getAccounts = () => JSON.parse(localStorage.getItem('accounts')) || [];
+const saveAccounts = a => localStorage.setItem('accounts', JSON.stringify(a));
+const getActiveAccountId = () => localStorage.getItem('activeAccountId');
+const setActiveAccountId = id => localStorage.setItem('activeAccountId', id);
+
+const generateSuperProperties = () => btoa(JSON.stringify({ 
+    os: "Windows", browser: "Chrome", device: "", system_locale: "ja", 
+    browser_user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", 
+    browser_version: "120.0.0.0", os_version: "10", release_channel: "stable", client_build_number: 262355 
+}));
+
 document.addEventListener('DOMContentLoaded', async () => {
     if (localStorage.theme === 'dark' || (!localStorage.theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
@@ -34,96 +40,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     document.body.addEventListener('paste', e => {
         const file = e.clipboardData.files[0];
-        if (file) {
-            e.preventDefault();
-            attachedFile = file;
-            const previewBar = document.getElementById('attachment-preview-bar');
-            previewBar.classList.remove('hidden');
-            previewBar.classList.add('flex');
-            document.getElementById('attachment-preview-name').innerText = attachedFile.name;
-            handleInput();
-        }
+        if (file) { e.preventDefault(); setAttachment(file); }
     });
-
-    // Make DM Icon clickable - binding directly
-    document.getElementById('dm-icon').onclick = loadDms;
-
-    document.getElementById('send-button').onclick = sendMessage;
     
-    document.getElementById('attach-button').onclick = () => {
-        document.getElementById('file-input').click();
-    };
-
-    document.getElementById('file-input').onchange = (e) => {
-        if (e.target.files[0]) {
-            attachedFile = e.target.files[0];
-            const previewBar = document.getElementById('attachment-preview-bar');
-            previewBar.classList.remove('hidden');
-            previewBar.classList.add('flex');
-            document.getElementById('attachment-preview-name').innerText = attachedFile.name;
-            handleInput();
-        }
-    };
-
+    document.getElementById('message-container').addEventListener('scroll', handleScroll);
+    document.getElementById('dm-icon').onclick = loadDms;
+    document.getElementById('send-button').onclick = sendMessage;
+    document.getElementById('attach-button').onclick = () => document.getElementById('file-input').click();
+    document.getElementById('file-input').onchange = (e) => { if (e.target.files[0]) setAttachment(e.target.files[0]); };
     document.getElementById('cancel-attachment-btn').onclick = cancelAttachment;
     document.getElementById('cancel-reply-btn').onclick = cancelReply;
-    
     document.getElementById('message-input').oninput = handleInput;
-    document.getElementById('message-input').onkeypress = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
+    document.getElementById('message-input').onkeydown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     };
-
     document.getElementById('back-to-channels-btn').onclick = showSidebarView;
-    document.getElementById('open-settings-btn').onclick = renderSettingsModal;
-    document.getElementById('add-account-switcher-btn').onclick = () => { document.getElementById('account-switcher').classList.add('hidden'); showLoginScreen(); };
-    document.getElementById('message-container').addEventListener('scroll', loadMoreMessages);
-    window.addEventListener('resize', handleResize);
 
     const accounts = getAccounts();
     const activeId = getActiveAccountId();
-    
-    if (accounts.length > 0 && activeId) {
-        switchAccount(activeId);
-    } else {
-        showLoginScreen();
-    }
+    if (accounts.length > 0 && activeId) switchAccount(activeId);
+    else showLoginScreen();
+
+    window.addEventListener('resize', () => {
+        if(window.innerWidth >= 768) { 
+            document.getElementById('sidebar-view').classList.remove('hidden'); 
+            document.getElementById('chat-section').classList.remove('hidden');
+        }
+    });
 });
 
-const getAccounts = () => JSON.parse(localStorage.getItem('accounts')) || [];
-const saveAccounts = a => localStorage.setItem('accounts', JSON.stringify(a));
-const getActiveAccountId = () => localStorage.getItem('activeAccountId');
-const setActiveAccountId = id => localStorage.setItem('activeAccountId', id);
-
-const generateSuperProperties = () => btoa(JSON.stringify({ 
-    os: "Windows", 
-    browser: "Chrome", 
-    device: "", 
-    system_locale: "ja", 
-    browser_user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", 
-    browser_version: "120.0.0.0", 
-    os_version: "10", 
-    release_channel: "stable", 
-    client_build_number: 262355 
-}));
-
 async function apiRequest(token, path, method = 'GET', body = null, isFormData = false) {
-    const opts = { 
-        method, 
-        headers: { 
-            'Authorization': token, 
-            'X-Super-Properties': generateSuperProperties() 
-        } 
-    };
+    const opts = { method, headers: { 'Authorization': token, 'X-Super-Properties': generateSuperProperties() } };
     if (body) {
-        if (isFormData) {
-            opts.body = body;
-        } else {
-            opts.body = JSON.stringify(body);
-            opts.headers['Content-Type'] = 'application/json';
-        }
+        if (isFormData) opts.body = body;
+        else { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
     }
     try {
         const r = await fetch(`${API_BASE}${path}`, opts);
@@ -131,131 +81,61 @@ async function apiRequest(token, path, method = 'GET', body = null, isFormData =
         const data = r.status === 204 ? {} : await r.json();
         if (!r.ok) return { error: data, status: r.status };
         return { data, status: r.status };
-    } catch (e) {
-        return { error: { message: "Network error" }, status: 0 };
-    }
+    } catch { return { error: { message: "Network error" }, status: 0 }; }
+}
+
+function handleScroll(e) {
+    const con = e.target;
+    isUserAtBottom = (con.scrollHeight - con.scrollTop - con.clientHeight) < 50;
+    if (con.scrollTop < 100 && oldestMessageId && !isLoadingMore) loadMoreMessages();
 }
 
 function cleanupState() {
-    if (ws) { ws.onclose = null; ws.close(); ws = null; }
-    currentChannel = null;
-    lastSequence = null;
-    attachedFile = null;
+    if (ws) { ws.close(); ws = null; }
+    currentChannel = null; lastSequence = null; attachedFile = null;
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     if (timeoutInterval) clearInterval(timeoutInterval);
-    
     document.getElementById('guild-list').innerHTML = '';
     document.getElementById('channel-list').innerHTML = '';
     document.getElementById('message-container').innerHTML = '';
-    document.getElementById('guild-name').innerText = '';
-    
-    messageStore = {}; 
-    guildFolders = []; 
-    guildDataMap.clear();
-    editedMessages = {};
-    pingCounts = {};
-    
-    cancelReply();
-    cancelAttachment();
+    messageStore = {}; editedMessages = {}; pingCounts = {};
+    cancelReply(); cancelAttachment();
 }
 
 function switchAccount(id) {
-    cleanupState();
-    setActiveAccountId(id);
-    const accounts = getAccounts();
-    const account = accounts.find(a => a.id === id);
-    
-    if (!account) {
-        showLoginScreen();
-        return;
-    }
+    cleanupState(); setActiveAccountId(id);
+    const account = getAccounts().find(a => a.id === id);
+    if (!account) { showLoginScreen(); return; }
     currentAccount = account;
-    maxCharCount = (currentAccount.premium_type === 2) ? 4000 : 2000;
-
     document.getElementById('token-input').value = '';
-    updateView('app');
-    renderCurrentUserPanel();
-    loadGuilds();
+    updateView('app'); renderCurrentUserPanel(); loadGuilds();
     setTimeout(connectWS, 100);
 }
 
-function updateView(viewName) {
-    const authSection = document.getElementById('auth-section');
-    const mainApp = document.getElementById('main-app');
-    if (viewName === 'auth') {
-        authSection.classList.remove('hidden'); authSection.classList.add('flex');
-        mainApp.classList.add('hidden'); mainApp.classList.remove('flex');
-    } else if (viewName === 'app') {
-        authSection.classList.add('hidden'); authSection.classList.remove('flex');
-        mainApp.classList.remove('hidden'); mainApp.classList.add('flex');
-        if (window.innerWidth < 768) showSidebarView();
-    }
+function updateView(view) {
+    const auth = document.getElementById('auth-section');
+    const app = document.getElementById('main-app');
+    if (view === 'auth') { auth.classList.remove('hidden'); auth.classList.add('flex'); app.classList.add('hidden'); app.classList.remove('flex'); }
+    else { auth.classList.add('hidden'); auth.classList.remove('flex'); app.classList.remove('hidden'); app.classList.add('flex'); }
 }
 
-function showLoginScreen(reloginAccount = null) {
-    cleanupState();
-    updateView('auth');
-    document.getElementById('migration-view').classList.add('hidden');
+function showLoginScreen() {
+    cleanupState(); updateView('auth');
     document.getElementById('token-input-view').classList.add('hidden');
     renderSavedAccountsList();
-    
-    const accounts = getAccounts();
-    if (accounts.length > 0 && !reloginAccount) {
+    if (getAccounts().length > 0) {
         document.getElementById('account-selection-view').classList.remove('hidden');
         document.getElementById('account-selection-view').classList.add('flex');
     } else {
-        showTokenInput(reloginAccount);
+        showTokenInput();
     }
 }
 
-function showTokenInput(account) {
+function showTokenInput() {
     document.getElementById('account-selection-view').classList.add('hidden');
     document.getElementById('account-selection-view').classList.remove('flex');
     document.getElementById('token-input-view').classList.remove('hidden');
     document.getElementById('token-input-view').classList.add('flex');
-    document.getElementById('token-input').value = '';
-    
-    const userInfo = document.getElementById('relogin-user-info');
-    if (account) {
-        document.getElementById('auth-title').innerText = '再ログイン';
-        userInfo.classList.remove('hidden'); 
-        userInfo.classList.add('flex');
-        document.getElementById('relogin-name').innerText = account.global_name || account.username;
-        document.getElementById('relogin-username').innerText = account.username;
-        const avatar = account.avatar ? `https://cdn.discordapp.com/avatars/${account.id}/${account.avatar}.png?size=128` : `https://cdn.discordapp.com/embed/avatars/${account.discriminator % 5}.png`;
-        document.getElementById('relogin-avatar').src = avatar;
-        
-        document.getElementById('token-label').innerText = '新しいトークン';
-        document.getElementById('add-account-button-text').innerText = 'アカウントを更新';
-        document.getElementById('add-account-button').onclick = () => addAccount(document.getElementById('token-input').value, account.id);
-    } else {
-        document.getElementById('auth-title').innerText = 'アカウントを追加';
-        userInfo.classList.add('hidden'); 
-        userInfo.classList.remove('flex');
-        document.getElementById('token-label').innerText = 'トークン';
-        document.getElementById('add-account-button-text').innerText = 'ログイン';
-        document.getElementById('add-account-button').onclick = () => addAccount(document.getElementById('token-input').value);
-    }
-}
-
-function handleResize() { 
-    if (window.innerWidth >= 768) {
-        showChatView();
-        document.getElementById('sidebar-view').classList.remove('hidden');
-    } else if (currentChannel) {
-        showChatView();
-    } else {
-        showSidebarView(); 
-    }
-}
-function showSidebarView() { 
-    document.getElementById('sidebar-view').classList.remove('hidden'); 
-    document.getElementById('chat-section').classList.add('hidden'); 
-}
-function showChatView() { 
-    document.getElementById('sidebar-view').classList.add('hidden'); 
-    document.getElementById('chat-section').classList.remove('hidden'); 
-    document.getElementById('chat-section').classList.add('flex'); 
 }
 
 function renderSavedAccountsList() {
@@ -264,943 +144,481 @@ function renderSavedAccountsList() {
     list.innerHTML = '';
     accounts.forEach(acc => {
         const div = document.createElement('div');
-        div.className = "flex items-center gap-3 p-3 border rounded hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer transition-colors";
-        div.style.borderColor = 'var(--border-color)';
-        const avatar = acc.avatar ? `https://cdn.discordapp.com/avatars/${acc.id}/${acc.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${acc.discriminator % 5}.png`;
-        div.innerHTML = `<img src="${avatar}" class="w-10 h-10 rounded-full bg-gray-300"><div class="flex-1 min-w-0"><div class="font-bold truncate">${acc.global_name || acc.username}</div><div class="text-xs text-[var(--text-secondary)] truncate">@${acc.username}</div></div><div class="delete-btn p-2 text-gray-400 hover:text-red-500 rounded-full" title="削除"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></div>`;
-        div.onclick = (e) => { 
-            if (e.target.closest('.delete-btn')) return; 
-            switchAccount(acc.id); 
-        };
-        div.querySelector('.delete-btn').onclick = (e) => deleteAccount(acc.id, e);
+        div.className = "flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-[#35373c] cursor-pointer transition-colors";
+        const av = acc.avatar ? `https://cdn.discordapp.com/avatars/${acc.id}/${acc.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${acc.discriminator % 5}.png`;
+        div.innerHTML = `<img src="${av}" class="w-10 h-10 rounded-full"><div class="flex-1"><div class="font-bold">${acc.global_name||acc.username}</div><div class="text-xs opacity-70">@${acc.username}</div></div>`;
+        div.onclick = () => switchAccount(acc.id);
         list.appendChild(div);
     });
 }
 
 function renderCurrentUserPanel() {
     if (!currentAccount) return;
-    const nameEl = document.getElementById('current-user-name');
-    const subEl = document.getElementById('current-user-subtext');
-    const avCont = document.getElementById('current-user-avatar-container');
+    document.getElementById('current-user-name').innerText = currentAccount.global_name || currentAccount.username;
+    document.getElementById('current-user-subtext').innerText = `@${currentAccount.username}`;
+    const av = currentAccount.avatar ? `https://cdn.discordapp.com/avatars/${currentAccount.id}/${currentAccount.avatar}.png?size=128` : `https://cdn.discordapp.com/embed/avatars/${currentAccount.discriminator % 5}.png`;
     
-    nameEl.textContent = currentAccount.global_name || currentAccount.username;
-    subEl.textContent = `@${currentAccount.username}`;
-    
-    const avatar = currentAccount.avatar ? `https://cdn.discordapp.com/avatars/${currentAccount.id}/${currentAccount.avatar}.png?size=128` : `https://cdn.discordapp.com/embed/avatars/${currentAccount.discriminator % 5}.png`;
-    
-    let decoHtml = '';
+    let deco = '';
     if(currentAccount.avatar_decoration_data) {
         const decoUrl = `https://cdn.discordapp.com/avatar-decoration-presets/${currentAccount.avatar_decoration_data.asset}.png?size=96`;
-        // user-panel-decoration クラスを使用し、親コンテナからはみ出すことを許可
-        decoHtml = `<img src="${decoUrl}" class="user-panel-decoration">`;
+        deco = `<img src="${decoUrl}" class="user-panel-decoration">`;
     }
-    
-    // 【修正】コンテナ自体を w-full h-full にして、HTML側の親要素サイズ(w-9 h-9)よりも大きく表示できるように
-    // CSS上書き用スタイルを追加
-    avCont.innerHTML = `
-        <div style="width: 48px; height: 48px; position: absolute; bottom: 0; left: -4px;">
-            <img src="${avatar}" class="rounded-full w-full h-full object-cover shadow-sm">
-            ${decoHtml}
+
+    // Set SVG manually here to ensure it is not corrupted
+    document.getElementById('open-settings-btn').innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" fill="var(--bg-secondary)"></path></svg>`;
+
+    // Container 48x48 overflow visible, left negative margin to bulge out
+    document.getElementById('current-user-avatar-container').innerHTML = `
+        <div style="width: 44px; height: 44px; position: absolute; top:50%; left:50%; transform:translate(-50%,-50%);">
+            <img src="${av}" class="w-full h-full rounded-full object-cover">
+            ${deco}
         </div>`;
     
-    renderAccountSwitcher();
-
-    // --- 設定アイコン(SVG)の修正 ---
-    const settingsBtn = document.getElementById('open-settings-btn');
-    // SVGパスを正常な歯車アイコンに書き換え
-    settingsBtn.innerHTML = `
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path>
-            <!-- 穴の部分 -->
-            <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" fill="var(--bg-secondary)"></path>
-        </svg>`;
-}
-
-function renderAccountSwitcher() {
     const list = document.getElementById('account-list');
-    const accounts = getAccounts();
-    const activeId = getActiveAccountId();
-    
-    list.innerHTML = accounts.map(acc => {
-        const av = acc.avatar ? `https://cdn.discordapp.com/avatars/${acc.id}/${acc.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${acc.discriminator % 5}.png`;
-        const isActive = acc.id === activeId;
-        return `<div class="flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-[var(--button-bg)] hover:text-white group" onclick="switchAccount('${acc.id}')">
-            <img src="${av}" class="w-8 h-8 rounded-full">
-            <span class="flex-1 truncate text-sm font-semibold">${acc.global_name || acc.username}</span> 
-            ${isActive ? '<div class="w-2 h-2 rounded-full bg-green-500"></div>' : ''} 
-            <div onclick="deleteAccount('${acc.id}',event)" title="削除" class="hidden group-hover:block p-1 hover:bg-black/20 rounded-full">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-            </div>
-        </div>`;
+    list.innerHTML = getAccounts().map(acc => {
+        const a = acc.avatar ? `https://cdn.discordapp.com/avatars/${acc.id}/${acc.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${acc.discriminator % 5}.png`;
+        return `<div class="flex items-center gap-2 p-2 rounded hover:bg-[#5865f2] hover:text-white cursor-pointer" onclick="switchAccount('${acc.id}')"><img src="${a}" class="w-6 h-6 rounded-full"><span class="truncate text-sm flex-1">${acc.username}</span></div>`;
     }).join('');
 }
 
-function createServerIconElement(s, isInFolder = false) {
-    let el = document.createElement('div'); 
-    el.id = `guild-${s.id}`; 
-    el.className = 'server-icon group ' + (isInFolder ? 'in-folder' : '');
-    el.title = s.name;
-    el.onclick = () => loadChannels(s, el);
-    
-    if (s.icon) {
-        el.innerHTML = `<img src="https://cdn.discordapp.com/icons/${s.id}/${s.icon}.png?size=128" class="object-cover w-full h-full transition-all group-hover:rounded-2xl rounded-[50%]">`;
-    } else {
-        el.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gray-700 text-white font-bold text-sm transition-all group-hover:rounded-2xl rounded-[50%]">${s.name.substring(0, 2)}</div>`;
+async function loadGuilds() {
+    const res = await apiRequest(currentAccount.token, '/users/@me/guilds');
+    if (res.error) { if (res.status === 401) showLoginScreen(); return; }
+    guildDataMap.clear();
+    res.data.forEach(s => guildDataMap.set(s.id, s));
+    if (guildFolders.length > 0) renderFolders();
+    else {
+        const l = document.getElementById('guild-list'); l.innerHTML = '';
+        res.data.forEach(s => l.appendChild(createServerIcon(s)));
     }
+}
+
+function createServerIcon(s) {
+    const el = document.createElement('div');
+    el.id = `guild-${s.id}`; el.className = 'server-icon group mb-2'; el.title = s.name;
+    el.innerHTML = s.icon ? `<img src="https://cdn.discordapp.com/icons/${s.id}/${s.icon}.png?size=128" class="w-full h-full object-cover">` : `<div class="text-sm font-bold">${s.name.substring(0,2)}</div>`;
+    el.onclick = () => loadChannels(s, el);
     return el;
 }
 
 function renderFolders() {
-    const list = document.getElementById('guild-list');
-    list.innerHTML = '';
-    
-    guildFolders.forEach(item => {
-        if (!item.guild_ids || item.guild_ids.length === 0) return;
-        
-        if (item.id) {
-            const folderWrap = document.createElement('div');
-            folderWrap.className = 'server-folder-wrapper flex flex-col items-center gap-2 w-full transition-all';
-            folderWrap.id = `folder-${item.id}`;
-            
-            const containedGuilds = item.guild_ids.map(id => guildDataMap.get(id)).filter(Boolean);
-            if (containedGuilds.length === 0) return;
-
-            const header = document.createElement('div');
-            header.className = 'folder-closed group'; 
-            
-            const createMiniGrid = () => {
-                header.innerHTML = '';
-                containedGuilds.slice(0, 4).forEach(g => {
-                    const img = document.createElement('img');
-                    img.className = 'folder-icon-thumb';
-                    img.src = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/0.png`;
-                    header.appendChild(img);
-                });
-            }
-            createMiniGrid();
-
-            let folderColor = 'rgba(88, 101, 242, 0.4)';
-            if (item.color) {
-                const r = (item.color >> 16) & 255;
-                const g = (item.color >> 8) & 255;
-                const b = item.color & 255;
-                folderColor = `rgba(${r},${g},${b},0.4)`;
-            }
-            header.style.backgroundColor = folderColor;
-
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'hidden flex-col gap-2 items-center w-full transition-all py-1';
-            containedGuilds.forEach(g => contentDiv.appendChild(createServerIconElement(g, true)));
-
-            header.onclick = () => {
-                const isOpen = openFolderId === item.id;
-                if (isOpen) {
-                    openFolderId = null;
-                    contentDiv.classList.add('hidden');
-                    contentDiv.classList.remove('flex');
-                    header.classList.remove('folder-opened');
-                    header.classList.add('folder-closed');
-                    header.style.backgroundColor = folderColor;
-                    createMiniGrid();
-                } else {
-                    if (openFolderId) {
-                        const prevOpen = document.querySelector(`#folder-${openFolderId} .folder-opened`);
-                        if (prevOpen) prevOpen.click(); 
-                    }
-                    openFolderId = item.id;
-                    contentDiv.classList.remove('hidden');
-                    contentDiv.classList.add('flex');
-                    header.classList.remove('folder-closed');
-                    header.classList.add('folder-opened');
-                    header.innerHTML = `<div class="text-white opacity-80"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 7H12L10 5H4C2.9 5 2.01 5.9 2.01 7L2 19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V9C22 7.9 21.1 7 20 7Z"/></svg></div>`;
-                    header.style.backgroundColor = 'rgba(88, 101, 242, 0.3)';
-                }
-            };
-            folderWrap.appendChild(header); 
-            folderWrap.appendChild(contentDiv);
-            list.appendChild(folderWrap);
-        } else {
-            item.guild_ids.forEach(gid => {
-                const s = guildDataMap.get(gid);
-                if (s) list.appendChild(createServerIconElement(s));
+    const l = document.getElementById('guild-list'); l.innerHTML = '';
+    guildFolders.forEach(f => {
+        if(!f.guild_ids.length) return;
+        if(f.id) {
+            const w = document.createElement('div'); w.className = 'flex flex-col items-center gap-2 w-full mb-2';
+            const head = document.createElement('div'); head.className = 'folder-closed';
+            const cG = f.guild_ids.map(id=>guildDataMap.get(id)).filter(Boolean);
+            cG.slice(0,4).forEach(g=>{ const i=document.createElement('img'); i.className='folder-icon-thumb'; i.src=g.icon?`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`:`https://cdn.discordapp.com/embed/avatars/0.png`; head.appendChild(i); });
+            const content = document.createElement('div'); content.className = 'hidden flex-col gap-2';
+            cG.forEach(g => {
+                const sEl = createServerIcon(g); sEl.classList.add('in-folder');
+                content.appendChild(sEl);
             });
-        }
+            head.onclick = () => {
+                const open = content.classList.contains('hidden');
+                content.classList.toggle('hidden', !open); content.classList.toggle('flex', open);
+                head.innerHTML = open ? `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 7H12L10 5H4C2.9 5 2.01 5.9 2.01 7L2 19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V9C22 7.9 21.1 7 20 7Z"/></svg>` : '';
+                if(!open) { head.innerHTML = ''; cG.slice(0,4).forEach(g=>{ const i=document.createElement('img'); i.className='folder-icon-thumb'; i.src=g.icon?`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`:`https://cdn.discordapp.com/embed/avatars/0.png`; head.appendChild(i); }); }
+                head.className = open ? 'folder-opened' : 'folder-closed';
+            };
+            w.appendChild(head); w.appendChild(content); l.appendChild(w);
+        } else f.guild_ids.forEach(id=>{ const s=guildDataMap.get(id); if(s) l.appendChild(createServerIcon(s)); });
     });
 }
 
-async function loadGuilds() {
-    if (!currentAccount) return;
-    const res = await apiRequest(currentAccount.token, '/users/@me/guilds');
-    if (res.error) {
-        if (res.status === 401) showLoginScreen(currentAccount);
-        return;
-    }
-    guildDataMap.clear();
-    res.data.forEach(s => guildDataMap.set(s.id, s));
-    
-    if (guildFolders.length > 0) {
-        renderFolders(); 
-    } else {
-        const list = document.getElementById('guild-list');
-        list.innerHTML = '';
-        res.data.forEach(s => list.appendChild(createServerIconElement(s)));
-    }
+async function loadChannels(g, el) {
+    document.querySelectorAll('.server-icon.active').forEach(e=>e.classList.remove('active')); if(el) el.classList.add('active');
+    document.getElementById('guild-name').innerText = g.name;
+    const res = await apiRequest(currentAccount.token, `/guilds/${g.id}/channels`);
+    if(res.error) return;
+    renderChannels(res.data);
 }
 
 async function loadDms() {
-    if (!currentAccount) return;
-    
-    // UI update
-    document.querySelectorAll('.server-icon.active').forEach(e => e.classList.remove('active'));
-    document.getElementById('dm-icon').classList.add('active');
+    document.querySelectorAll('.server-icon.active').forEach(e=>e.classList.remove('active')); document.getElementById('dm-icon').classList.add('active');
     document.getElementById('guild-name').innerText = 'Direct Messages';
-    
-    const res = await apiRequest(currentAccount.token, '/users/@me/channels');
-    if (res.error) return;
-    
-    const list = document.getElementById('channel-list');
-    list.innerHTML = '';
-    
-    const dms = res.data.sort((a,b) => (b.last_message_id||0) - (a.last_message_id||0));
-    
-    dms.forEach(dm => {
-        const div = document.createElement('div');
-        div.className = "channel-item p-1.5 pl-3 rounded-md cursor-pointer mb-0.5 text-[0.95em] truncate flex items-center";
-        
-        let icon = '<span class="text-xl mr-2 text-[var(--text-secondary)]">@</span>';
-        let name = "DM";
-        if(dm.recipients && dm.recipients[0]) {
-            const user = dm.recipients[0];
-            const av = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=32` : 'https://cdn.discordapp.com/embed/avatars/0.png';
-            icon = `<img src="${av}" class="w-5 h-5 mr-2 rounded-full">`;
-            name = user.global_name || user.username;
-        }
-        
-        div.innerHTML = `${icon}<span>${name}</span>`;
-        div.onclick = () => selectChannel(dm);
-        list.appendChild(div);
-    });
-    updatePingDots();
+    const res = await apiRequest(currentAccount.token, `/users/@me/channels`);
+    if(res.data) renderChannels(res.data, true);
 }
 
-async function loadChannels(g, element) {
-    if (!currentAccount) return;
-    document.querySelectorAll('.server-icon.active').forEach(e => e.classList.remove('active'));
-    if (element) element.classList.add('active');
-    
-    document.getElementById('guild-name').innerText = g.name;
-    const res = await apiRequest(currentAccount.token, `/guilds/${g.id}/channels`);
-    if (res.error) return;
-    
-    const list = document.getElementById('channel-list');
-    list.innerHTML = '';
-    const channels = res.data;
-    const grouped = channels.reduce((acc, ch) => { 
-        (acc[ch.parent_id || 'null'] = acc[ch.parent_id || 'null'] || []).push(ch); 
-        return acc; 
-    }, {});
-    
-    Object.values(grouped).forEach(arr => arr.sort((a, b) => a.position - b.position));
-    
-    const renderChannelItem = (ch, catId = null) => {
-        if (![0, 5, 2].includes(ch.type)) return;
-        const div = document.createElement('div'); 
-        div.id = `channel-${ch.id}`; 
-        div.className = `channel-item p-1.5 pl-3 rounded-md cursor-pointer mb-0.5 text-[0.95em] truncate flex items-center relative ${catId ? 'channel-child-'+catId : ''}`; 
-        
-        const icon = ch.type === 2 
-            ? '<svg class="w-5 h-5 mr-1.5 opacity-60" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0a8.977 8.977 0 00-6.22 3.32l1.62 1.34C6.54 6.78 7.68 6 9 6c2.37 0 4.54 1.05 5.96 2.7l1.7-1.39A8.932 8.932 0 0010 3.23zM5.16 8.78L2.73 11.2a8.96 8.96 0 000 3.19l2.43 2.43 1.54-1.54-.78-.79c-.28-.56-.45-1.19-.45-1.87s.17-1.3.45-1.86l.78-.78-1.54-1.54z"></path></svg>' 
-            : '<span class="text-xl mr-2 text-[var(--text-secondary)] opacity-70">#</span>';
-        
-        div.innerHTML = `${icon}<span class="${ch.type===2?'':'font-medium'}">${ch.name}</span>`;
-        if (ch.type !== 2) div.onclick = () => selectChannel(ch); 
-        else div.classList.add('opacity-50', 'cursor-not-allowed');
-        
-        list.appendChild(div);
-    };
-    
-    (grouped['null'] || []).forEach(ch => renderChannelItem(ch));
-    
-    channels.filter(i => i.type === 4).sort((x, y) => x.position - y.position).forEach(cat => {
-        const h = document.createElement('div'); 
-        h.className = 'px-2 pt-4 pb-1 text-xs font-bold uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center select-none group'; 
-        h.innerHTML = `<svg class="w-3 h-3 mr-1 category-arrow transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> ${cat.name}`;
-        
-        h.onclick = () => toggleCategory(cat.id, h);
-        list.appendChild(h); 
-        (grouped[cat.id] || []).forEach(ch => renderChannelItem(ch, cat.id));
-    });
-    
-    updatePingDots();
-}
-
-function toggleCategory(catId, headerEl) {
-    const children = document.querySelectorAll(`.channel-child-${catId}`);
-    const isCollapsed = headerEl.classList.contains('category-collapsed');
-    if (isCollapsed) {
-        headerEl.classList.remove('category-collapsed');
-        children.forEach(c => c.classList.remove('channel-collapsed'));
+function renderChannels(channels, isDm = false) {
+    const list = document.getElementById('channel-list'); list.innerHTML = '';
+    if(isDm) {
+        channels.sort((a,b)=>(b.last_message_id||0)-(a.last_message_id||0));
+        channels.forEach(c => {
+            const u = c.recipients[0];
+            const d = document.createElement('div'); d.className = "channel-item p-1.5 pl-3 cursor-pointer mb-0.5 truncate flex items-center";
+            d.id = `channel-${c.id}`;
+            const av = u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=32` : `https://cdn.discordapp.com/embed/avatars/${u.discriminator%5}.png`;
+            d.innerHTML = `<img src="${av}" class="w-6 h-6 rounded-full mr-2"> ${u.global_name||u.username}`;
+            d.onclick = () => selectChannel(c);
+            list.appendChild(d);
+        });
     } else {
-        headerEl.classList.add('category-collapsed');
-        children.forEach(c => c.classList.add('channel-collapsed'));
+        const grouped = channels.reduce((a,c)=>{(a[c.parent_id||'null']=a[c.parent_id||'null']||[]).push(c); return a}, {});
+        const draw = (ch) => {
+            if(![0,5,2].includes(ch.type)) return;
+            const d = document.createElement('div'); d.className = `channel-item p-1.5 pl-3 rounded-md cursor-pointer mb-0.5 truncate text-[15px] ${ch.type===2?'opacity-60 cursor-not-allowed':''}`;
+            d.id = `channel-${ch.id}`;
+            d.innerHTML = `${ch.type===2?'🔊 ':'<span class="opacity-60 text-lg mr-1">#</span> '}${ch.name}`;
+            if(ch.type!==2) d.onclick=()=>selectChannel(ch);
+            list.appendChild(d);
+        };
+        (grouped['null']||[]).sort((a,b)=>a.position-b.position).forEach(draw);
+        channels.filter(c=>c.type===4).sort((a,b)=>a.position-b.position).forEach(cat => {
+            const cDiv = document.createElement('div');
+            cDiv.className = 'mt-4 mb-1 text-xs font-bold text-gray-500 uppercase flex items-center cursor-pointer';
+            cDiv.innerHTML = `<svg class="w-3 h-3 mr-1 category-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> ${cat.name}`;
+            const sub = document.createElement('div');
+            cDiv.onclick = () => { sub.classList.toggle('hidden'); cDiv.classList.toggle('category-collapsed'); };
+            list.appendChild(cDiv); list.appendChild(sub);
+            (grouped[cat.id]||[]).sort((a,b)=>a.position-b.position).forEach(ch => {
+                // Modified helper for category children
+                if(![0,5,2].includes(ch.type)) return;
+                const d = document.createElement('div'); d.className = `channel-item p-1.5 pl-3 rounded-md cursor-pointer mb-0.5 truncate text-[15px] ${ch.type===2?'opacity-60 cursor-not-allowed':''}`;
+                d.id = `channel-${ch.id}`;
+                d.innerHTML = `${ch.type===2?'🔊 ':'<span class="opacity-60 text-lg mr-1">#</span> '}${ch.name}`;
+                if(ch.type!==2) d.onclick=()=>selectChannel(ch);
+                sub.appendChild(d);
+            });
+        });
     }
 }
 
 async function selectChannel(ch) {
-    currentChannel = ch;
-    oldestMessageId = null;
-    isLoadingMore = false;
+    currentChannel = ch; oldestMessageId = null; isLoadingMore = false; isUserAtBottom = true;
+    document.querySelectorAll('.channel-item.active').forEach(e=>e.classList.remove('active'));
+    document.getElementById(`channel-${ch.id}`)?.classList.add('active');
     
-    cancelReply();
-    cancelAttachment();
-    delete pingCounts[ch.id];
-    updatePingDots();
+    const name = ch.name || ch.recipients?.[0]?.username || "DM";
+    document.getElementById('channel-name-text').innerText = name;
+    if(window.innerWidth < 768) { document.getElementById('sidebar-view').classList.add('hidden'); document.getElementById('chat-section').classList.remove('hidden'); document.getElementById('chat-section').classList.add('flex'); }
     
-    document.querySelectorAll('.channel-item.active').forEach(e => e.classList.remove('active'));
-    const cE = document.getElementById(`channel-${ch.id}`);
-    if (cE) cE.classList.add('active');
-    
-    if (window.innerWidth < 768) showChatView();
-
-    let name = ch.name || 'DM';
-    if(ch.recipients && ch.recipients[0]) name = ch.recipients[0].global_name || ch.recipients[0].username;
-    
-    document.getElementById('channel-name-text').innerHTML = `<span class="text-[var(--text-secondary)] opacity-70 mr-1.5">#</span><span>${name}</span>`;
-    
-    const container = document.getElementById('message-container');
-    container.innerHTML = '<div class="w-full h-full flex items-center justify-center"><div class="loader"></div></div>';
-    handleInput(); 
-    
-    if (ch.guild_id) {
-        checkTimeoutStatus(ch.guild_id);
-    } else {
-        setInputState(true);
-    }
+    const con = document.getElementById('message-container');
+    con.innerHTML = '<div class="loader m-auto"></div>';
     
     const res = await apiRequest(currentAccount.token, `/channels/${ch.id}/messages?limit=50`);
-    container.innerHTML = '';
+    con.innerHTML = '';
     
-    if (res.error) {
-        if (res.status === 401) showLoginScreen(currentAccount);
-        container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">アクセス権限がありません</div>`;
-        return;
-    }
-
-    const msgs = res.data;
-    if (msgs.length > 0) {
-        oldestMessageId = msgs[msgs.length - 1].id;
-        const fragment = document.createDocumentFragment();
+    if (res.data && res.data.length > 0) {
+        oldestMessageId = res.data[res.data.length - 1].id;
+        const rev = res.data.reverse();
+        const frag = document.createDocumentFragment();
+        let lastId = null;
+        let lastTime = 0;
         
-        const arr = msgs.slice().reverse();
-        for (let i = 0; i < arr.length; i++) {
-             const m = arr[i];
-             const prev = (i > 0) ? arr[i-1] : null;
-             
-             if (plugins.messageLogger) messageStore[m.id] = m;
-             
-             const isGrouped = prev && (prev.author.id === m.author.id) 
-                && !m.referenced_message 
-                && !m.webhook_id && !prev.webhook_id 
-                && (new Date(m.timestamp) - new Date(prev.timestamp) < 5 * 60 * 1000);
-             
-             const el = createMessageElement(m, isGrouped);
-             el.dataset.authorId = m.author.id;
-             fragment.appendChild(el);
-        }
-        container.appendChild(fragment);
-        container.scrollTop = container.scrollHeight;
-    }
-}
-
-function createMessageElement(m, isGrouped) {
-    // 1. メッセージ本文（テキスト）の構築
-    let contentHtml = parseMarkdown(m.content);
-    if (m.mentions) {
-        m.mentions.forEach(u => { 
-            const name = u.global_name || u.username;
-            contentHtml = contentHtml.replace(new RegExp(`<@!?${u.id}>`, 'g'), `<span class="mention">@${name}</span>`);
+        rev.forEach(m => {
+            if(plugins.messageLogger) messageStore[m.id] = m;
+            let grouped = false;
+            if(lastId === m.author.id && !m.referenced_message && !m.webhook_id && (new Date(m.timestamp).getTime() - lastTime < 300000)) grouped = true;
+            const el = createMessageElement(m, grouped);
+            frag.appendChild(el);
+            lastId = m.author.id; lastTime = new Date(m.timestamp).getTime();
         });
+        con.appendChild(frag);
+        con.scrollTop = con.scrollHeight;
     }
-    // スタンプも本文の一部として扱うが、ブロック要素にすることで分離
-    if (m.sticker_items) {
-        contentHtml += m.sticker_items.map(s => `<img src="https://media.discordapp.net/stickers/${s.id}.webp?size=160" class="w-32 h-32 mt-2 block"/>`).join('');
-    }
-    
-    // 2. 付属品（添付ファイル・Embed）の構築 -> 変数を分ける
-    let accessoriesHtml = '';
-    
-    if (m.attachments?.length > 0) {
-        m.attachments.forEach(a => {
-            const isImg = a.content_type?.startsWith('image/');
-            const isVid = a.content_type?.startsWith('video/');
-            if(isImg) {
-                accessoriesHtml += `<a href="${a.url}" target="_blank" class="block mt-2"><img src="${a.url}" class="max-w-[300px] max-h-[300px] rounded-lg bg-[var(--bg-tertiary)] object-contain" style="display:block;"></a>`;
-            } else if(isVid) {
-                accessoriesHtml += `<video src="${a.url}" controls class="max-w-[300px] mt-2 rounded-lg bg-black block"></video>`;
-            } else {
-                accessoriesHtml += `<div class="mt-2 p-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex items-center"><a href="${a.url}" target="_blank" class="text-[var(--text-link)] font-mono text-sm">${a.filename}</a></div>`;
-            }
-        });
-    }
-    
-    // Embedもここに追加（重要：Embed内は white-space: normal に戻すクラスを入れる）
-    if (m.embeds?.length > 0) accessoriesHtml += m.embeds.map(renderEmbed).join('');
-
-    // --- ここからDOM生成 ---
-
-    const el = document.createElement('div'); 
-    el.id = `message-${m.id}`; 
-    // width:100% と flex-col を明示
-    el.className = `message-group ${isGrouped ? 'grouped' : ''} flex flex-col relative w-full`;
-    // 左マージンや余計なflex指定をCSSクラスだけに頼らずリセット
-    el.style.marginTop = isGrouped ? '2px' : '17px';
-    
-    el.dataset.authorId = m.author.id;
-
-    if (plugins.clickAction) el.addEventListener('dblclick', () => startReply(m));
-    if (m.isSending) el.classList.add('message-sending');
-    if (m.isFailed) el.classList.add('message-failed');
-
-    let historyHtml = '';
-    if(plugins.messageLogger && editedMessages[m.id]) {
-        historyHtml = `<div class="text-[var(--text-secondary)] opacity-80 text-sm line-through mb-1 whitespace-pre-wrap">${editedMessages[m.id]}</div>`;
-    }
-
-    const isMe = currentAccount && m.author.id === currentAccount.id;
-    const delBtn = isMe ? `<button onclick="deleteMessage('${m.id}', event)" class="p-1 hover:bg-[var(--bg-primary)] rounded text-red-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : '';
-    const editBtn = isMe ? `<button onclick="startEdit('${m.id}')" class="p-1 hover:bg-[var(--bg-primary)] rounded text-[var(--text-secondary)]"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>` : '';
-    const replyBtn = `<button onclick='startReply(${JSON.stringify({id:m.id, author:m.author})})' class="p-1 hover:bg-[var(--bg-primary)] rounded text-[var(--text-secondary)]"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg></button>`;
-    
-    // ツールバー
-    const toolbar = `<div class="message-toolbar absolute -top-4 right-4 rounded shadow-sm bg-[var(--bg-secondary)] flex items-center p-0.5 z-20 border border-[var(--border-color)]">${editBtn}${delBtn}${replyBtn}</div>`;
-
-    let headerAddon = '';
-    let nameStyle = m.member?.color ? `style="color:#${m.member.color.toString(16).padStart(6,'0')}"` : '';
-    if (m.deleted && plugins.messageLogger) {
-         headerAddon += '<span class="text-red-500 text-[10px] font-bold mr-1">[DELETED]</span>';
-    }
-
-    const editedTag = m.edited_timestamp ? '<span class="edited-tag text-[10px] text-[var(--text-secondary)] ml-1">(edited)</span>' : '';
-    
-    // 【重要】改行を含むテンプレートリテラルのインデントによる空白混入を防ぐため、HTMLは1行、またはインデントなしで結合する
-    // 本文エリアのHTML
-    const bodyContent = `<div class="message-body whitespace-pre-wrap leading-6 break-words text-[var(--text-primary)] relative">${contentHtml}${editedTag}</div>`;
-    
-    // 付属品エリア（Embedなど）のHTML：white-space: normal でリセットするクラスをつける
-    const accessoriesContent = accessoriesHtml ? `<div class="message-accessories whitespace-normal mt-1 w-full max-w-full">${accessoriesHtml}</div>` : '';
-    
-    // 中身全体
-    const fullContentHtml = `${historyHtml}${bodyContent}${accessoriesContent}`;
-
-    // グループ化あり/なしのHTML構築
-    if (isGrouped) {
-        // インデントの余白だけを持つFlexレイアウト（空白文字の排除）
-        // 56px = 40px(アイコン幅) + 16px(右マージン)
-        el.innerHTML = `
-        ${toolbar}
-        <div class="flex items-start w-full">
-            <div style="width:56px;min-width:56px;"></div>
-            <div class="flex-1 min-w-0 pr-4">
-                ${fullContentHtml}
-            </div>
-        </div>`.replace(/\n\s+/g, ''); // JS上のインデント（改行+スペース）を最後に削除して出力
-    } 
-    else {
-        // 通常メッセージ
-        const member = m.member || {}; 
-        const name = member.nick || m.author.global_name || m.author.username;
-        const avUrl = member.avatar ? `https://cdn.discordapp.com/guilds/${currentChannel.guild_id}/users/${m.author.id}/avatars/${member.avatar}.png?size=64` : (m.author.avatar ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${m.author.discriminator%5}.png`);
-        
-        let decoHtml = '';
-        if (m.author.avatar_decoration_data) { 
-             const decoUrl = `https://cdn.discordapp.com/avatar-decoration-presets/${m.author.avatar_decoration_data.asset}.png?size=96`; 
-             // 前回のデコレーション修正もここに適用済み
-             decoHtml = `<img src="${decoUrl}" style="position:absolute;top:50%;left:50%;width:120%;height:120%;max-width:none;transform:translate(-50%,-50%);pointer-events:none;z-index:20;">`; 
-        }
-
-        const date = new Date(m.timestamp);
-        const timeStr = plugins.sendSeconds ? date.toLocaleTimeString() : date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        const usernameDisp = plugins.showMeYourName ? `<span class="ml-1 text-[0.8em] font-medium text-[var(--text-secondary)] opacity-70">@${m.author.username}</span>` : '';
-        const botTag = m.author.bot ? `<span class="ml-1.5 bg-[#5865F2] text-white text-[0.625rem] px-1.5 rounded-[0.1875rem] py-[1px] font-medium align-middle">BOT</span>` : '';
-
-        // リプライ参照
-        let refHtml = '';
-        if (m.referenced_message) {
-            const rm = m.referenced_message;
-            const refName = rm.author ? (rm.author.global_name || rm.author.username) : "Unknown";
-            const refAv = rm.author && rm.author.avatar ? `https://cdn.discordapp.com/avatars/${rm.author.id}/${rm.author.avatar}.png?size=16` : 'https://cdn.discordapp.com/embed/avatars/0.png';
-            refHtml = `
-            <div class="flex items-center gap-1 ml-[56px] mb-1 opacity-70 text-sm cursor-pointer hover:opacity-100 relative w-fit" onclick="scrollToMessage('${rm.id}')">
-                <div style="position:absolute;top:50%;left:-24px;width:34px;height:12px;border-left:2px solid var(--text-secondary);border-top:2px solid var(--text-secondary);border-top-left-radius:6px;margin-top:-2px;pointer-events:none;"></div>
-                <img src="${refAv}" class="w-4 h-4 rounded-full">
-                <span class="font-bold mr-1 truncate max-w-[200px]">${refName}</span>
-                <span class="truncate max-w-[300px]">${rm.content || '添付ファイル'}</span>
-            </div>`.replace(/\n\s+/g, '');
-        }
-
-        // JS内のHTML構造での改行コード混入を防ぐ書き方
-        el.innerHTML = `
-        ${refHtml}
-        ${toolbar} 
-        <div class="flex mt-0.5 items-start w-full relative">
-            <div class="mr-4 relative flex-shrink-0" style="width: 40px; height: 40px;">
-                <img src="${avUrl}" class="rounded-full w-full h-full object-cover relative z-10 block">
-                ${decoHtml}
-            </div>
-            <div class="flex-1 min-w-0 pr-4">
-                <div class="flex items-baseline leading-tight">
-                    ${headerAddon}
-                    <span class="font-medium mr-1 cursor-pointer hover:underline" ${nameStyle}>${name}</span>
-                    ${usernameDisp}${botTag}
-                    <span class="ml-2 text-xs text-[var(--text-secondary)]">${timeStr}</span>
-                </div>
-                ${fullContentHtml}
-            </div>
-        </div>`.replace(/\n\s+/g, ' '); // 念のため整形用の改行をスペースに置換
-    }
-    
-    if (m.deleted && plugins.messageLogger) {
-         const contentDiv = el.querySelector('.message-body');
-         if(contentDiv) contentDiv.classList.add('deleted-text');
-    }
-    
-    // 元テキスト保存（編集機能用）
-    const contentText = el.querySelector('.message-body');
-    if(contentText) contentText.dataset.originalContent = m.content;
-
-    return el;
-}
-
-async function sendMessage() {
-    if (!currentChannel || !currentAccount) return;
-    const input = document.getElementById('message-input');
-    const content = input.value.trim();
-    if (!content && !attachedFile) return;
-
-    // 現在時刻をDateオブジェクトで作っておく
-    const now = new Date();
-    const tempId = `temp-${now.getTime()}`;
-    
-    // 仮メッセージオブジェクト作成
-    const fakeMsg = { 
-        id: tempId, 
-        author: currentAccount, 
-        content: content, 
-        // 【重要】renderMsg内での計算用に、文字列ではなくDateオブジェクトそのものか、正しいISO文字列を渡す
-        timestamp: now.toISOString(), 
-        isSending: true,
-        // グループ化判定のためにmember情報も最低限入れておく
-        member: { avatar: null }
-    };
-
-    if (attachedFile) fakeMsg.attachments = [{ filename: attachedFile.name, url: '#', content_type: attachedFile.type }];
-    
-    // ここで renderMsg を呼ぶと、timestampが新しいので直前のメッセージと比較され、
-    // 条件（5分以内・同じ人）を満たせば「isGrouped=true」で描画されます。
-    renderMsg(fakeMsg);
-    
-    input.value = ''; handleInput();
-    const container = document.getElementById('message-container');
-    container.scrollTop = container.scrollHeight; 
-
-    // 送信処理（変更なし）
-    try {
-        const replyRef = replyingTo ? { message_id: replyingTo.messageId } : undefined;
-        let body, isForm = false;
-        
-        if (attachedFile) { 
-            body = new FormData(); 
-            body.append('payload_json', JSON.stringify({ content: content, message_reference: replyRef }));
-            body.append('files[0]', attachedFile); 
-            isForm = true; 
-        } else {
-            body = { content: content, message_reference: replyRef };
-        }
-
-        const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages`, 'POST', body, isForm);
-        if (!res.error) {
-             cancelAttachment(); cancelReply();
-             // API成功レスポンスが来ると、WS(MESSAGE_CREATE)経由で正式メッセージが来るので
-             // createMessageElement内の nonce 処理等で仮メッセージは消えます
-        } else {
-             const el = document.getElementById(`message-${tempId}`);
-             if(el) {
-                 el.classList.remove('message-sending'); el.classList.add('message-failed');
-             }
-             renderClydeError('送信失敗: ' + (res.error.message || 'Unknown Error'));
-        }
-    } catch(e) {
-        console.error(e);
-        const el = document.getElementById(`message-${tempId}`);
-        if(el) { el.classList.remove('message-sending'); el.classList.add('message-failed'); }
-    }
-}
-
-function handleInput() {
-    const i = document.getElementById('message-input');
-    const s = document.getElementById('send-button');
-    const ctr = document.getElementById('char-counter');
-    
-    i.style.height = 'auto'; 
-    i.style.height = (i.scrollHeight) + 'px';
-    
-    const len = i.value.length;
-    
-    s.disabled = (i.value.trim() === '' && !attachedFile);
-    
-    if(plugins.showCharacter) {
-        ctr.classList.remove('opacity-0');
-        ctr.textContent = `${len} / ${maxCharCount}`;
-        ctr.style.color = (len > maxCharCount) ? '#ed4245' : 'var(--text-secondary)';
-    } else {
-        ctr.classList.add('opacity-0');
-    }
-}
-
-function connectWS() { 
-    if (!currentAccount) return; 
-    if (ws) ws.close();
-
-    ws = new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json'); 
-    
-    ws.onmessage = e => { 
-        const d = JSON.parse(e.data); 
-        if (d.s) lastSequence = d.s; 
-        
-        if (d.op === 10) { 
-            heartbeatInterval = setInterval(()=>ws.send(JSON.stringify({op: 1, d: lastSequence})), d.d.heartbeat_interval); 
-            ws.send(JSON.stringify({ op: 2, d: { token: currentAccount.token, properties: { $os: "linux", $browser: "disco", $device: "disco" } } })); 
-        
-        } else if (d.t === 'READY') {
-             if (d.d.user_settings?.guild_folders) { 
-                 guildFolders = d.d.user_settings.guild_folders; 
-                 if(document.getElementById('guild-list').children.length === 0 || guildFolders.length > 0) {
-                     renderFolders();
-                 }
-             }
-        
-        } else if (d.t === 'MESSAGE_CREATE') {
-             if (d.d.channel_id === currentChannel?.id) { 
-                if (d.d.author.id === currentAccount.id) {
-                    document.querySelectorAll('.message-sending').forEach(e => e.remove());
-                }
-                renderMsg(d.d);
-             }
-             if(d.d.guild_id && d.d.mentions?.find(u=>u.id===currentAccount.id)) {
-                 pingCounts[d.d.channel_id] = (pingCounts[d.d.channel_id]||0) + 1;
-                 updatePingDots();
-             }
-
-        } else if (d.t === 'MESSAGE_UPDATE') {
-             if (plugins.messageLogger && d.d.id) {
-                 const old = messageStore[d.d.id];
-                 if(old && d.d.content && old.content !== d.d.content) {
-                     const prevHistory = editedMessages[d.d.id] || "";
-                     const oldLine = `<div class="history-line">${parseMarkdown(old.content)}</div>`;
-                     editedMessages[d.d.id] = prevHistory + oldLine;
-                     
-                     const combined = { ...old, ...d.d };
-                     messageStore[d.d.id] = combined;
-                     rerenderMessage(d.d.id, combined);
-                 }
-             }
-
-        } else if (d.t === 'MESSAGE_DELETE') {
-             const id = d.d.id;
-             if (messageStore[id] && plugins.messageLogger) {
-                 const m = messageStore[id];
-                 m.deleted = true;
-                 rerenderMessage(id, m);
-             } else {
-                 const el = document.getElementById(`message-${id}`);
-                 if(el) el.remove();
-             }
-        }
-    };
-    
-    ws.onclose = () => {
-        setTimeout(connectWS, 5000); 
-    };
-}
-
-function renderMsg(m) {
-    const container = document.getElementById('message-container');
-    const lastEl = container.lastElementChild;
-    let isGrouped = false;
-
-    if (lastEl && !m.isSending && !lastEl.classList.contains('message-sending')) {
-         const lastAuth = lastEl.dataset.authorId;
-         if(lastAuth === m.author.id && !m.webhook_id && !m.referenced_message) {
-             isGrouped = true;
-         }
-    }
-    
-    if (plugins.messageLogger) messageStore[m.id] = m;
-    
-    const el = createMessageElement(m, isGrouped);
-    container.appendChild(el);
-    container.scrollTop = container.scrollHeight;
-}
-
-function rerenderMessage(id, m) {
-    const oldEl = document.getElementById(`message-${id}`);
-    if (!oldEl) return;
-    const isGrouped = oldEl.classList.contains('grouped');
-    const newEl = createMessageElement(m, isGrouped);
-    oldEl.replaceWith(newEl);
-}
-
-async function addAccount(token, existingId = null) {
-    document.getElementById('login-error').innerText = "";
-    if (!token || !token.trim()) return;
-    token = token.trim().replace(/^"|"$/g, '');
-    const b = document.getElementById('add-account-button'), t = document.getElementById('add-account-button-text'), s = document.getElementById('login-spinner');
-    t.classList.add('hidden'); s.classList.remove('hidden'); b.disabled = true;
-    const result = await apiRequest(token, '/users/@me');
-    t.classList.remove('hidden'); s.classList.add('hidden'); b.disabled = false;
-    if (result.data && result.data.id) {
-        let a = getAccounts(); 
-        if(existingId && existingId !== result.data.id) return document.getElementById('login-error').innerText = "別のアカウントのトークンです";
-        const idx = a.findIndex(acc => acc.id === result.data.id);
-        const n = { ...result.data, token };
-        if (idx > -1) a[idx] = n; else a.push(n);
-        saveAccounts(a); switchAccount(result.data.id);
-    } else { document.getElementById('login-error').innerText = `エラー: ${result.error?.message || '無効なトークン'}`; }
-}
-
-function deleteAccount(id, e) {
-    if(e) e.stopPropagation(); 
-    if (!e.shiftKey && !confirm("このアカウントを削除しますか？ (Shift+Clickでスキップ)")) return;
-    let a = getAccounts(); a = a.filter(acc => acc.id !== id); saveAccounts(a);
-    if (getActiveAccountId() === id || !getActiveAccountId()) { localStorage.removeItem('activeAccountId'); showLoginScreen(); }
-    else { renderSavedAccountsList(); renderCurrentUserPanel(); }
-}
-
-async function deleteMessage(id, e) {
-    if (e.shiftKey || confirm("メッセージを削除しますか？")) { 
-        await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages/${id}`, 'DELETE'); 
-    }
-}
-
-function startEdit(id) { 
-    const msgEl = document.getElementById(`message-${id}`); 
-    if (!msgEl) return; 
-    
-    const contentEl = msgEl.querySelector('.message-content-text'); 
-    if (!contentEl) return; 
-    
-    const original = contentEl.dataset.originalContent || "";
-    
-    contentEl.innerHTML = `
-        <textarea class="input-field w-full p-2 bg-[var(--bg-tertiary)] rounded outline-none h-auto border border-blue-500 font-sans" rows="3">${original}</textarea>
-        <div class="text-xs mt-1 text-[var(--text-link)] opacity-80">Enterで保存 - Escでキャンセル</div>
-    `; 
-    
-    const t = contentEl.querySelector('textarea'); 
-    t.focus(); 
-    
-    t.onkeydown = async (e) => { 
-        if(e.key==='Enter' && !e.shiftKey) { 
-            e.preventDefault(); 
-            await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages/${id}`, 'PATCH', {content: t.value}); 
-        } else if(e.key==='Escape'){ 
-            selectChannel(currentChannel); 
-        } 
-    };
-}
-
-function startReply(m) { 
-    replyingTo = { messageId: m.id, author: m.author }; 
-    const bar = document.getElementById('reply-bar');
-    bar.classList.remove('hidden'); 
-    bar.classList.add('flex'); 
-    document.getElementById('reply-username').innerText = m.author.global_name || m.author.username; 
-    document.getElementById('message-input').focus(); 
-}
-
-function cancelReply() { 
-    replyingTo = null; 
-    const bar = document.getElementById('reply-bar');
-    bar.classList.remove('flex'); 
-    bar.classList.add('hidden'); 
-}
-
-function cancelAttachment() {
-    attachedFile = null;
-    document.getElementById('file-input').value = "";
-    const preview = document.getElementById('attachment-preview-bar');
-    preview.classList.remove('flex');
-    preview.classList.add('hidden');
-    handleInput();
-}
-
-function scrollToMessage(id) {
-    const el = document.getElementById(`message-${id}`);
-    if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('flash-highlight');
-        setTimeout(() => el.classList.remove('flash-highlight'), 1500);
-    }
-}
-
-function parseMarkdown(t) { 
-    if (!t) return ''; 
-    return t
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>')
-        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-[var(--text-link)] hover:underline">$1</a>'); 
-}
-
-function renderEmbed(e) {
-    // テンプレート内の改行を削除して返す
-    return `<div style="border-left:4px solid ${e.color ? '#' + e.color.toString(16).padStart(6,'0') : '#ccc'};" class="bg-[var(--bg-tertiary)] p-3 rounded mt-2 max-w-xl text-sm break-words whitespace-normal block w-full">
-        ${e.title ? `<b class="block mb-1">${e.title}</b>` : ''}
-        ${e.description ? `<span>${parseMarkdown(e.description)}</span>` : ''}
-    </div>`.replace(/\n\s+/g, '');
-}
-
-function renderClydeError(t) { 
-    const c = document.getElementById('message-container'); 
-    const html = `<div class="p-2 text-red-500 font-bold bg-[var(--error-bg)] rounded my-2 border-l-4 border-red-500">System: ${t}</div>`;
-    c.insertAdjacentHTML('beforeend', html);
-    c.scrollTop = c.scrollHeight; 
-}
-
-function updatePingDots() { 
-    document.querySelectorAll('.ping-dot').forEach(e => e.remove());
-    Object.keys(pingCounts).forEach(chId => {
-        if(pingCounts[chId] > 0) {
-             const el = document.getElementById(`channel-${chId}`);
-             if (el && !el.querySelector('.ping-dot')) {
-                 el.insertAdjacentHTML('beforeend', '<div class="ping-dot"></div>');
-             }
-        }
-    });
-}
-
-function checkTimeoutStatus(guildId) { 
-    if (timeoutInterval) clearInterval(timeoutInterval);
-    setInputState(true);
-}
-
-function setInputState(enabled) { 
-    const input = document.getElementById('message-input');
-    input.disabled = !enabled;
-    if(!enabled) input.placeholder = "送信権限がありません";
-    else input.placeholder = "メッセージを送信";
-}
-
-function renderSettingsModal() {
-    switchSettingsTab('plugins');
-    renderPluginList();
-    renderThemeTab();
-    document.getElementById('settings-modal').classList.remove('hidden');
-}
-
-function switchSettingsTab(tabName) {
-    document.querySelectorAll('.settings-tab-item').forEach(e => e.classList.remove('active'));
-    document.getElementById(`tab-btn-${tabName}`).classList.add('active');
-    
-    document.getElementById('tab-content-plugins').classList.add('hidden');
-    document.getElementById('tab-content-general').classList.add('hidden');
-    document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
 }
 
 async function loadMoreMessages() {
     if (isLoadingMore || !oldestMessageId || !currentChannel) return;
-    const container = document.getElementById('message-container');
-    
-    // 誤動作防止：上の方にいない場合は読み込まない
-    if (container.scrollTop > 100) return;
-
     isLoadingMore = true;
+    const con = document.getElementById('message-container');
+    const oldH = con.scrollHeight;
     
-    // 【重要】現在のスクロール高さを保存
-    const previousHeight = container.scrollHeight;
-    const previousTop = container.scrollTop;
-
     const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages?limit=50&before=${oldestMessageId}`);
-    
     if (res.data && res.data.length > 0) {
-        const messages = res.data;
-        oldestMessageId = messages[messages.length - 1].id;
-        const fragment = document.createDocumentFragment();
-        const arr = messages.reverse();
+        oldestMessageId = res.data[res.data.length-1].id;
+        const msgs = res.data.reverse();
+        const frag = document.createDocumentFragment();
+        let lastId = null; let lastTime = 0;
 
-        // 過去ログ内のグループ化計算用
-        let lastBatchAuthId = null;
-        let lastBatchTimestamp = 0;
-
-        arr.forEach((m, index) => {
-            if (plugins.messageLogger) messageStore[m.id] = m;
-            let isGrouped = false;
-            // バッチ内でのグループ化判定
-            if (index > 0) {
-                 const timeDiff = new Date(m.timestamp).getTime() - lastBatchTimestamp;
-                 if (lastBatchAuthId === m.author.id && 
-                    !m.referenced_message && !m.webhook_id && 
-                    timeDiff < 5 * 60 * 1000) {
-                     isGrouped = true;
-                 }
+        msgs.forEach((m, idx) => {
+            if(plugins.messageLogger) messageStore[m.id] = m;
+            let grouped = false;
+            if (idx > 0) {
+                 if (lastId === m.author.id && !m.referenced_message && !m.webhook_id && (new Date(m.timestamp).getTime() - lastTime < 300000)) grouped = true;
             }
-            const el = createMessageElement(m, isGrouped);
-            fragment.appendChild(el);
-            lastBatchAuthId = m.author.id;
-            lastBatchTimestamp = new Date(m.timestamp).getTime();
+            const el = createMessageElement(m, grouped);
+            frag.appendChild(el);
+            lastId = m.author.id; lastTime = new Date(m.timestamp).getTime();
         });
-
-        // 要素を挿入
-        container.prepend(fragment);
-        
-        // 【重要】高さの差分を計算して、スクロール位置を調整
-        // これにより「見た目上の位置」が維持される
-        const newHeight = container.scrollHeight;
-        container.scrollTop = newHeight - previousHeight + previousTop;
-        
-    } else {
-        oldestMessageId = null;
-    }
-    
+        con.prepend(frag);
+        con.scrollTop = con.scrollHeight - oldH;
+    } else oldestMessageId = null;
     isLoadingMore = false;
 }
 
-function renderPluginList() {
-    const list = document.getElementById('plugin-list'); 
-    list.innerHTML = '';
-    const defs = [
-        { key: 'clickAction', name: 'Double Click Reply', desc: 'メッセージをダブルクリックして返信します' },
-        { key: 'showMeYourName', name: 'Show Me Your Name', desc: 'ユーザー名の横に(@username)を表示' },
-        { key: 'sendSeconds', name: 'SendSeconds', desc: '送信時刻の秒数まで表示' },
-        { key: 'messageLogger', name: 'MessageLogger', desc: '削除/編集履歴を保持して表示' },
-        { key: 'showCharacter', name: 'Show Character Count', desc: '文字数を入力欄の右下に表示' }
-    ];
-    defs.forEach(p => {
-        const item = document.createElement('div');
-        item.className = "plugin-item";
-        item.innerHTML = `<div><div class="font-bold text-[var(--text-primary)]">${p.name}</div><div class="text-xs text-[var(--text-secondary)] mt-0.5">${p.desc}</div></div><label class="switch"><input type="checkbox" ${plugins[p.key]?'checked':''} data-key="${p.key}"><span class="slider"></span></label>`;
-        item.querySelector('input').onchange = (e) => {
-            plugins[p.key] = e.target.checked;
-            localStorage.setItem('plugins', JSON.stringify(plugins));
-            handleInput(); 
+function createMessageElement(m, isGrouped) {
+    let contentHtml = parseMarkdown(m.content);
+    if(m.mentions) m.mentions.forEach(u=>{ contentHtml=contentHtml.replace(new RegExp(`<@!?${u.id}>`,'g'), `<span class="mention">@${u.global_name||u.username}</span>`); });
+    if(m.stickers) contentHtml+=m.stickers.map(s=>`<img src="https://media.discordapp.net/stickers/${s.id}.webp?size=160" class="w-32 block mt-2">`).join('');
+    
+    let attachmentsHtml = '';
+    if(m.attachments) m.attachments.forEach(a => {
+        const type = m.deleted ? 'message-deleted-img' : '';
+        if(a.content_type?.startsWith('image')) attachmentsHtml+=`<a href="${a.url}" target="_blank" class="block mt-2"><img src="${a.url}" class="max-w-[320px] max-h-[320px] rounded bg-[#2b2d31] object-contain ${type}"></a>`;
+        else attachmentsHtml+=`<div class="mt-2 p-3 bg-[#2b2d31] rounded flex items-center border border-gray-700"><a href="${a.url}" target="_blank" class="text-blue-400 hover:underline">${a.filename}</a></div>`;
+    });
+    
+    let embedsHtml = '';
+    if(m.embeds) embedsHtml = m.embeds.map(e => {
+        return `<div style="border-left:4px solid ${e.color ? '#' + e.color.toString(16).padStart(6,'0') : '#ccc'};" class="bg-[#2b2d31] p-3 rounded mt-2 max-w-lg text-sm break-words whitespace-normal block w-full">
+            ${e.title ? `<b class="block mb-1 text-gray-100">${e.title}</b>` : ''}
+            ${e.description ? `<span class="text-gray-300">${parseMarkdown(e.description)}</span>` : ''}
+        </div>`.replace(/\n\s+/g, '');
+    }).join('');
+
+    const el = document.createElement('div');
+    el.id = `message-${m.id}`;
+    el.className = `message-group ${isGrouped?'grouped':''} flex flex-col relative w-full`;
+    
+    // Check Mentions
+    if(currentAccount && m.mentions && m.mentions.some(u => u.id === currentAccount.id)) {
+        el.classList.add('mention-highlight');
+    }
+
+    // Prepare History Text (Deleted Logic)
+    let bodyClasses = "message-body whitespace-pre-wrap leading-6 break-words relative text-gray-100";
+    let appendText = '';
+    
+    if (m.deleted) {
+        bodyClasses += " message-deleted-text"; 
+        appendText = ' <span class="text-xs opacity-80">(deleted)</span>';
+    }
+
+    // Logic Construction
+    let refHtml = '';
+    if (m.referenced_message && !isGrouped) {
+        const rm = m.referenced_message;
+        const ra = rm.author || {username:'Unknown', avatar:null};
+        refHtml = `<div class="flex items-center gap-1 ml-[66px] mb-1 opacity-60 text-sm hover:opacity-100 relative cursor-pointer" onclick="scrollToMessage('${rm.id}')"><div class="reply-spine"></div><img src="${ra.avatar?`https://cdn.discordapp.com/avatars/${ra.id}/${ra.avatar}.png?size=16`:'https://cdn.discordapp.com/embed/avatars/0.png'}" class="w-4 h-4 rounded-full"> <span class="font-bold mr-1 text-gray-300">${ra.global_name||ra.username}</span> <span class="truncate text-gray-400 line-clamp-1">${rm.content||'Attachment'}</span></div>`;
+    }
+
+    const editTag = m.edited_timestamp ? '<span class="text-[10px] text-gray-500 ml-1">(edited)</span>' : '';
+    const date = new Date(m.timestamp);
+    const timeStr = plugins.sendSeconds ? date.toLocaleTimeString() : date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+    const fullBody = `${contentHtml}${editTag}${appendText}`;
+    const accs = (attachmentsHtml || embedsHtml) ? `<div class="message-accessories mt-1">${attachmentsHtml}${embedsHtml}</div>` : '';
+
+    const toolbar = `<div class="message-toolbar absolute -top-4 right-4 rounded shadow-sm flex items-center p-0.5 z-20"><button onclick='startReply(${JSON.stringify({id:m.id,author:m.author})})' class="p-1 hover:bg-gray-200 dark:hover:bg-[#3f4147] rounded text-gray-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg></button>
+    ${(currentAccount && m.author.id===currentAccount.id) ? `<button onclick="deleteMessage('${m.id}', event)" class="p-1 hover:bg-red-500/10 rounded text-red-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : ''}</div>`;
+
+    if (isGrouped) {
+        el.innerHTML = `${toolbar} <div class="flex items-start w-full relative group"> <div class="w-[56px] shrink-0 text-xs text-gray-500 opacity-0 group-hover:opacity-100 text-right pr-3 select-none mt-1">${timeStr}</div> <div class="flex-1 min-w-0 pr-4"> <div class="${bodyClasses}">${fullBody}</div> ${accs} </div> </div>`.replace(/\n\s+/g,' ');
+    } else {
+        const mem = m.member || {};
+        const nick = mem.nick || m.author.global_name || m.author.username;
+        const av = mem.avatar ? `https://cdn.discordapp.com/guilds/${currentChannel.guild_id}/users/${m.author.id}/avatars/${mem.avatar}.png?size=64` : (m.author.avatar ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${m.author.discriminator%5}.png`);
+        
+        let deco = '';
+        if(m.author.avatar_decoration_data) {
+            deco = `<img src="https://cdn.discordapp.com/avatar-decoration-presets/${m.author.avatar_decoration_data.asset}.png?size=96" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:120%; height:120%; max-width:none; pointer-events:none; z-index:20;">`;
         }
-        list.appendChild(item);
+
+        el.innerHTML = `
+        ${refHtml}
+        ${toolbar} 
+        <div class="flex mt-0.5 items-start w-full relative">
+            <div class="mr-4 ml-4 relative flex-shrink-0 cursor-pointer hover:drop-shadow-sm active:translate-y-[1px]" style="width: 40px; height: 40px;">
+                <img src="${av}" class="rounded-full w-full h-full object-cover relative z-10 block">
+                ${deco}
+            </div>
+            <div class="flex-1 min-w-0 pr-4">
+                <div class="flex items-baseline leading-tight">
+                    <span class="font-medium mr-1 text-gray-100 hover:underline cursor-pointer" ${mem.color?`style="color:#${mem.color.toString(16).padStart(6,'0')}"`:''}>${nick}</span>
+                    <span class="text-xs text-gray-500 ml-1">${timeStr}</span>
+                </div>
+                <div class="${bodyClasses}">
+                    ${fullBody}
+                </div>
+                ${accs}
+            </div>
+        </div>`.replace(/\n\s+/g, ' ');
+    }
+
+    // Preservation for editing
+    if(el.querySelector('.message-body')) {
+        el.querySelector('.message-body').dataset.originalContent = m.content;
+    }
+    
+    return el;
+}
+
+function parseMarkdown(t) {
+    if (!t) return '';
+    return t.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-400 hover:underline">$1</a>')
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/\n/g, '<br>');
+}
+
+async function sendMessage() {
+    if(!currentChannel) return;
+    const inp = document.getElementById('message-input');
+    const txt = inp.value.trim();
+    if(!txt && !attachedFile) return;
+
+    const sendingFile = attachedFile; 
+    setAttachment(null);
+    cancelAttachment(); 
+    inp.value = ''; handleInput(); 
+    
+    // Optimistic Render
+    const now = new Date();
+    const tempId = 'temp-'+now.getTime();
+    renderMsg({
+        id: tempId, author: currentAccount, content: txt, timestamp: now.toISOString(), 
+        mentions: [], attachments: sendingFile ? [{url:'#', filename: sendingFile.name, content_type: sendingFile.type}] : [],
+        isSending: true
+    });
+
+    const reply = replyingTo ? { message_id: replyingTo.messageId } : undefined;
+    let body, isForm = false;
+    
+    if (sendingFile) {
+        body = new FormData();
+        body.append('payload_json', JSON.stringify({content: txt, message_reference: reply}));
+        body.append('files[0]', sendingFile);
+        isForm = true;
+    } else {
+        body = { content: txt, message_reference: reply };
+    }
+    
+    cancelReply();
+
+    const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages`, 'POST', body, isForm);
+    if(res.error) {
+        const tEl = document.getElementById(`message-${tempId}`);
+        if(tEl) tEl.classList.add('message-failed');
+    }
+}
+
+function renderMsg(m, opt) {
+    const con = document.getElementById('message-container');
+    
+    // Group Calculation
+    let grouped = false;
+    const lastEl = con.lastElementChild;
+    if(lastEl && !m.referenced_message && !m.webhook_id) {
+         if (lastEl.dataset.authorId === m.author.id) grouped = true; // Simple check for optimistic UI
+    }
+    
+    const el = createMessageElement(m, grouped);
+    el.dataset.authorId = m.author.id;
+    con.appendChild(el);
+    if(isUserAtBottom || m.author.id === currentAccount.id) {
+        con.scrollTop = con.scrollHeight;
+    }
+}
+
+async function addAccount(token) {
+    const res = await apiRequest(token.trim(), '/users/@me');
+    if (res.data) {
+        let accs = getAccounts();
+        if(!accs.some(a=>a.id===res.data.id)) accs.push({...res.data, token: token.trim()});
+        else accs = accs.map(a=>a.id===res.data.id?{...res.data,token:token.trim()}:a);
+        saveAccounts(accs); switchAccount(res.data.id);
+    }
+}
+
+function connectWS() {
+    if(!currentAccount) return;
+    ws = new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json');
+    ws.onmessage = (e) => {
+        const p = JSON.parse(e.data);
+        if(p.s) lastSequence = p.s;
+        if(p.op === 10) {
+            heartbeatInterval = setInterval(()=>ws.send(JSON.stringify({op:1, d:lastSequence})), p.d.heartbeat_interval);
+            ws.send(JSON.stringify({op:2, d:{token:currentAccount.token, properties:{os:"windows",browser:"chrome",device:""}}}));
+        }
+        else if(p.t === 'MESSAGE_CREATE') {
+            if(p.d.channel_id === currentChannel?.id) {
+                // remove temp if exists
+                if(p.d.nonce) { const t=document.querySelector(`[id^='message-temp-']`); if(t) t.remove(); }
+                renderMsg(p.d);
+            }
+        }
+        else if(p.t === 'MESSAGE_DELETE') {
+            const el = document.getElementById(`message-${p.d.id}`);
+            if(el) {
+                if(plugins.messageLogger) {
+                    const body = el.querySelector('.message-body');
+                    if(body) { 
+                        body.classList.add('message-deleted-text'); 
+                        if(!body.innerHTML.includes('(deleted)')) body.insertAdjacentHTML('beforeend', ' <span class="text-xs opacity-80">(deleted)</span>');
+                    }
+                    const imgs = el.querySelectorAll('img:not(.avatar-img):not(.avatar-decoration)');
+                    imgs.forEach(i => i.classList.add('message-deleted-img'));
+                } else {
+                    el.remove();
+                }
+            }
+        }
+    };
+    ws.onclose = () => setTimeout(connectWS, 5000);
+}
+
+// Helpers
+function handleInput() {
+    const i = document.getElementById('message-input');
+    const s = document.getElementById('send-button');
+    i.style.height='auto'; i.style.height=(i.scrollHeight)+'px';
+    const c = i.value.length;
+    s.disabled = !c && !attachedFile;
+    if(plugins.showCharacter) {
+         document.getElementById('char-counter').textContent = c + '/2000';
+         document.getElementById('char-counter').classList.remove('opacity-0');
+    }
+}
+
+function setAttachment(f) { 
+    if(!f) { attachedFile=null; return; }
+    attachedFile = f; 
+    document.getElementById('attachment-preview-bar').classList.remove('hidden'); 
+    document.getElementById('attachment-preview-bar').classList.add('flex');
+    document.getElementById('attachment-preview-name').innerText = f.name; 
+    handleInput();
+}
+function cancelAttachment() { 
+    setAttachment(null); 
+    document.getElementById('file-input').value = ''; 
+    document.getElementById('attachment-preview-bar').classList.add('hidden');
+    document.getElementById('attachment-preview-bar').classList.remove('flex');
+    handleInput();
+}
+function startReply(m) { 
+    replyingTo = {messageId:m.id, author:m.author}; 
+    document.getElementById('reply-bar').classList.remove('hidden'); 
+    document.getElementById('reply-username').innerText = `@${m.author.username}`; 
+}
+function cancelReply() { replyingTo = null; document.getElementById('reply-bar').classList.add('hidden'); }
+async function deleteMessage(id,e) { if(e.shiftKey||confirm('Delete?')) apiRequest(currentAccount.token,`/channels/${currentChannel.id}/messages/${id}`,'DELETE'); }
+function scrollToMessage(id) { 
+    const e = document.getElementById(`message-${id}`); 
+    if(e){ e.scrollIntoView({block:'center',behavior:'smooth'}); e.classList.add('flash-highlight'); setTimeout(()=>e.classList.remove('flash-highlight'),1000); } 
+}
+function showSidebarView() {
+    document.getElementById('sidebar-view').classList.remove('hidden');
+    document.getElementById('chat-section').classList.add('hidden');
+}
+function setTheme(t) { localStorage.theme=t; if(t==='dark') document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); }
+function renderSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); renderPluginList(); }
+function renderPluginList() {
+    const list = document.getElementById('plugin-list'); list.innerHTML='';
+    const defs = [{k:'messageLogger',n:'Message Logger'},{k:'sendSeconds',n:'Seconds'},{k:'showMeYourName',n:'Show Name'}];
+    defs.forEach(d=>{
+        const row = document.createElement('div'); row.className='plugin-item';
+        row.innerHTML=`<span>${d.n}</span><label class="switch"><input type="checkbox" ${plugins[d.k]?'checked':''}><span class="slider"></span></label>`;
+        row.querySelector('input').onchange=(e)=>{ plugins[d.k]=e.target.checked; localStorage.setItem('plugins',JSON.stringify(plugins)); if(currentChannel) selectChannel(currentChannel); };
+        list.appendChild(row);
     });
 }
-
-function renderThemeTab() {
-    const current = localStorage.theme || 'dark';
-    document.getElementById('theme-check-dark').classList.toggle('hidden', current !== 'dark');
-    document.getElementById('theme-check-light').classList.toggle('hidden', current !== 'light');
-}
-
-function setTheme(mode) {
-    if(mode === 'dark') {
-        document.documentElement.classList.add('dark');
-        localStorage.theme = 'dark';
-    } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.theme = 'light';
-    }
-    renderThemeTab();
+function switchSettingsTab(t) {
+    document.querySelectorAll('.settings-tab-item').forEach(e=>e.classList.remove('active'));
+    document.getElementById(`tab-btn-${t}`).classList.add('active');
+    document.getElementById('tab-content-plugins').classList.toggle('hidden', t!=='plugins');
+    document.getElementById('tab-content-general').classList.toggle('hidden', t!=='general');
 }
