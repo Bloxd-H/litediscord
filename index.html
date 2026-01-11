@@ -7,1115 +7,1281 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class'
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        discord: {
+                            blurple: '#5865F2',
+                            green: '#23a559',
+                            yellow: '#fee75c',
+                            fuchsia: '#eb459e',
+                            red: '#ed4245',
+                        }
+                    }
+                }
+            }
         }
     </script>
     <style>
 :root {
-    --bg-primary: #f5f5f5;
-    --bg-secondary: #ffffff;
-    --bg-tertiary: #e3e5e8;
-    --bg-quaternary: #ebedef;
-    --text-primary: #060607;
-    --text-secondary: #5e6772;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f2f3f5;
+    --bg-tertiary: #ebedef;
+    --bg-floating: #ffffff;
+    --text-normal: #060607;
+    --text-muted: #5e6772;
     --text-link: #00b0f4;
-    --border-color: #d1d5db;
-    --button-bg: #5865f2;
-    --button-text: #fff;
-    --hover-bg: #ebedef;
-    --active-bg: #dadce0;
-    --mention-bg: rgba(88, 101, 242, 0.1);
-    --mention-fg: #5865f2;
-    /* Discordのメンション(黄色)背景 */
-    --mention-highlight-bg: rgba(250, 166, 26, 0.1); 
-    --mention-highlight-bar: #faa61a;
+    --header-primary: #060607;
+    --header-secondary: #4f5660;
+    --scrollbar-track: #2b2d31;
+    --scrollbar-thumb: #1a1b1e;
+    --channel-selected: #e0e1e5;
+    --channel-hover: #eaebed;
+    --message-hover: #f8f9f9; 
+    --divider: #e3e5e8;
     
-    --error-bg: rgba(237, 66, 69, 0.05);
-    --error-border: #ed4245;
-    --code-bg: #f2f3f5;
-    --message-hover: rgba(6, 6, 7, 0.02);
-    --popup-bg: #ffffff;
-    --popup-highlight: #e3e5e8;
-    --reply-spine-color: #c4c9ce; 
-    --folder-bg: rgba(88, 101, 242, 0.2);
+    --mention-bg: rgba(88, 101, 242, 0.15);
+    --mention-hover: rgba(88, 101, 242, 0.3);
+    
+    --bot-badge-bg: #5865F2;
+    --folder-color: #5865F2;
 }
 
 html.dark {
     --bg-primary: #313338;
     --bg-secondary: #2b2d31;
     --bg-tertiary: #1e1f22;
-    --bg-quaternary: #111214;
-    --text-primary: #f2f3f5;
-    --text-secondary: #949ba4;
+    --bg-floating: #18191c; /* popups */
+    --text-normal: #dbdee1;
+    --text-muted: #949ba4;
     --text-link: #00b0f4;
-    --border-color: #26272d;
-    --button-bg: #5865f2;
-    --button-text: #ffffff;
-    --hover-bg: #35373c;
-    --active-bg: #3f4147;
-    --mention-bg: rgba(88, 101, 242, 0.3);
-    --mention-fg: #c9cdfb;
-    /* Dark mode highlight */
-    --mention-highlight-bg: rgba(250, 166, 26, 0.1); 
-    --error-bg: rgba(240, 71, 71, 0.1);
-    --code-bg: #2b2d31;
-    --message-hover: rgba(2, 2, 2, 0.06);
-    --popup-bg: #2b2d31;
-    --popup-highlight: #35373c;
-    --reply-spine-color: #4f545c; 
-    --folder-bg: rgba(88, 101, 242, 0.2);
+    --header-primary: #f2f3f5;
+    --header-secondary: #b5bac1;
+    --scrollbar-track: #2b2d31;
+    --scrollbar-thumb: #1a1b1e;
+    --channel-selected: #3f4147;
+    --channel-hover: #35373c;
+    --message-hover: rgba(2, 2, 2, 0.06); 
+    --divider: #3e4147;
+
+    --mention-bg: rgba(250, 166, 26, 0.1); 
+    --bot-badge-bg: #5865F2;
 }
 
-/* Scrollbar Customization */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background-color: var(--bg-secondary); }
-::-webkit-scrollbar-thumb { background-color: var(--bg-quaternary); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background-color: var(--text-secondary); }
-
-/* Utility */
+/* Base resets */
+body { background-color: var(--bg-primary); color: var(--text-normal); }
 .no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar { width: 8px; height: 8px; background-color: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background-color: #1a1b1e; border-radius: 4px; }
+.input-reset { background: transparent; border: none; outline: none; }
 
-#message-input::placeholder { color: var(--text-secondary); opacity: 0.7; }
-#message-input, .input-field { outline: none; border: none; }
-
+/* Message Container Layout */
 #message-container { overflow-anchor: none; }
 
-/* Drag and Drop Overlay */
-#drag-overlay {
-    pointer-events: none; opacity: 0; transition: opacity 0.2s;
-    background: rgba(88, 101, 242, 0.8);
-    border: 4px dashed white;
-}
-.dragging #drag-overlay { opacity: 1; pointer-events: auto; }
-
-/* Servers & Folders */
+/* Servers */
 .server-icon {
     width: 48px; height: 48px; min-height: 48px;
     border-radius: 50%;
-    cursor: pointer; transition: all 0.2s cubic-bezier(0,0,0,1);
+    cursor: pointer; transition: all 0.2s ease-out;
     background-color: var(--bg-primary);
     display: flex; align-items: center; justify-content: center;
-    position: relative; overflow: visible; z-index: 10;
+    position: relative; z-index: 10;
 }
 .server-icon img { border-radius: 50%; transition: border-radius 0.2s; }
-.server-icon:hover, .server-icon.active { border-radius: 16px; }
+.server-icon:hover, .server-icon.active { border-radius: 16px; background-color: var(--discord-blurple); }
 .server-icon:hover img, .server-icon.active img { border-radius: 16px; }
 .server-icon.active::before {
-    content: ''; position: absolute; left: -14px; top: 10px; height: 28px; width: 8px;
-    background-color: var(--text-primary); border-radius: 0 4px 4px 0; transition: height 0.2s;
-}
-.server-icon.in-folder::after {
-    content: ''; position: absolute; inset: -4px;
-    background-color: rgba(88, 101, 242, 0.1); 
-    border-radius: 16px; z-index: -1; 
-}
-.folder-closed {
-    width: 48px; height: 48px; border-radius: 24px;
-    background-color: var(--folder-bg); cursor: pointer;
-    display: flex; flex-wrap: wrap; padding: 10px; gap: 4px;
-    align-items: center; justify-content: center;
-    transition: all 0.2s; z-index: 10;
-}
-.folder-closed:hover { border-radius: 16px; background-color: var(--button-bg); }
-.folder-icon-thumb { width: 10px; height: 10px; object-fit: cover; border-radius: 50%; background: var(--bg-secondary); }
-.folder-opened {
-    background-color: transparent !important; color: var(--text-secondary);
-    width: 48px; height: 48px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; padding: 4px;
-}
-
-.ping-dot {
-    position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px;
-    background-color: #ed4245; border-radius: 50%; border: 4px solid var(--bg-tertiary);
-    z-index: 30; pointer-events: none;
+    content: ''; position: absolute; left: -14px; top: 12px; height: 24px; width: 8px;
+    background-color: var(--header-primary); border-radius: 0 4px 4px 0;
 }
 
 /* Channels */
-.channel-item.active { background-color: var(--active-bg); color: var(--text-primary); }
-.channel-item:hover:not(.active) { background-color: var(--hover-bg); color: var(--text-primary); }
+.channel-item.active { background-color: var(--channel-selected); color: var(--text-normal); }
+.channel-item:hover:not(.active) { background-color: var(--channel-hover); color: var(--text-normal); }
+.category-collapsed .cat-arrow { transform: rotate(-90deg); }
 
-/* Avatar Decoration - Resized & Positioned */
+/* Messages Structure - FIX for Spacing/Indent */
+.message-wrapper {
+    position: relative;
+    padding-top: 0.125rem; 
+    padding-bottom: 0.125rem;
+    padding-left: 1rem; padding-right: 1rem; /* Standard margin */
+    word-wrap: break-word;
+    user-select: text;
+    width: 100%;
+    display: flex;
+    flex-direction: column; /* 縦並び（Reference対応） */
+}
+
+/* Extra Margin for distinct message groups (not grouped) */
+.message-wrapper.mt-cozy { margin-top: 1.75rem !important; } 
+
+.message-wrapper:hover { background-color: var(--message-hover); }
+
+/* Content Row: Avatar(Left) + Main(Right) */
+.msg-row {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+/* Left Column (Avatar/Gutter) - FIXED WIDTH */
+.msg-left-col {
+    width: 3rem; /* 48px (Avatar is 40px) */
+    margin-right: 1rem;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    /* align-items: center; */ /* Remove center to handle marginTop manually */
+}
+
+/* Avatar Handling */
 .avatar-container {
-    width: 40px; height: 40px; margin-top: 2px;
-    position: relative; flex-shrink: 0;
-    overflow: visible; /* Important to let decoration show */
+    width: 40px; height: 40px;
+    position: relative; 
+    cursor: pointer;
+    margin-top: 2px;
 }
-.avatar-img { 
-    width: 100%; height: 100%; 
-    border-radius: 50%; object-fit: cover;
-    position: relative; z-index: 10;
-}
-.avatar-decoration { 
-    position: absolute; 
-    top: 50%; left: 50%; 
-    width: 140%; height: 140%; /* Iconより大きく表示 */
-    transform: translate(-50%, -50%); 
-    pointer-events: none; z-index: 20; 
-    object-fit: contain;
+.avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+/* Avatar Decoration - INCREASED SIZE */
+.avatar-decoration {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 150%; height: 150%; /* Bigger */
+    pointer-events: none; z-index: 10;
 }
 
-/* Messages */
-.message-group { 
-    position: relative; margin-top: 1.0625rem; width: 100%; 
-    display: flex; flex-direction: column; align-items: flex-start; 
-}
-.message-group.grouped { margin-top: 0.125rem; }
-.message-group:hover { background-color: var(--message-hover); }
-
-/* Hover Toolbar */
-.message-group:hover .message-toolbar { opacity: 1; transform: translateY(0); pointer-events: auto; }
-.message-toolbar { 
-    opacity: 0; pointer-events: none; transform: translateY(-4px); transition: all 0.1s; 
-    border: 1px solid var(--border-color); 
+/* Right Column (Header + Body) */
+.msg-right-col {
+    flex: 1;
+    min-width: 0;
 }
 
-/* Deleted messages: No toolbar, red text */
-.message-deleted .message-toolbar { display: none !important; }
-.message-deleted .message-content-text { color: #ed4245; }
+.msg-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    line-height: 1.375rem;
+    margin-bottom: 0.1rem;
+}
+.msg-username { font-weight: 500; cursor: pointer; color: var(--text-normal); }
+.msg-username:hover { text-decoration: underline; }
+.msg-timestamp { font-size: 0.75rem; color: var(--text-muted); cursor: default; margin-left: 0.25rem; }
 
-.message-content-text { width: 100%; user-select: text; overflow-wrap: break-word; word-break: break-word; line-height: 1.375rem; color: var(--text-primary); }
+.msg-content {
+    font-size: 1rem;
+    line-height: 1.375rem;
+    color: var(--text-normal);
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+/* Grouped Message Indent - matches left column */
+/* Since we use flex row, if avatar is empty, msg-right-col still renders correct pos */
+.grouped-gutter {
+    width: 100%; height: 100%;
+    /* Grouped hover timestamp here in future */
+}
+
+/* Reply/Reference Styling */
+.reference-line {
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+    position: relative;
+    margin-left: 1.2rem; /* Adjusted indent */
+}
+.reference-spine {
+    position: absolute;
+    top: 50%; left: -1.75rem; width: 34px; height: 12px;
+    border-left: 2px solid var(--text-muted);
+    border-top: 2px solid var(--text-muted);
+    border-top-left-radius: 6px; pointer-events: none; opacity: 0.4;
+    margin-top: 2px;
+}
+
+/* Bot Tag */
+.bot-badge {
+    background-color: var(--bot-badge-bg);
+    color: white; font-size: 0.625rem;
+    padding: 0 0.275rem; border-radius: 0.1875rem;
+    font-weight: 500; text-transform: uppercase;
+    line-height: 1.3; vertical-align: baseline;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-left: 0.25rem; height: 15px;
+}
+.bot-badge svg { margin-right: 2px; }
 
 /* Mentions */
-.mention {
-    background: var(--mention-bg);
-    color: var(--mention-fg);
-    padding: 0 2px;
-    border-radius: 3px;
-    font-weight: 500;
-    cursor: pointer;
+.mention { background-color: var(--mention-bg); color: var(--discord-blurple); padding: 0 2px; border-radius: 3px; font-weight: 500; cursor: pointer; }
+.mention:hover { background-color: var(--bot-badge-bg); color: white; }
+
+/* Ephemeral Message (Clyde/System) */
+.ephemeral-message { border-left: 4px solid var(--discord-blurple); background-color: rgba(88,101,242, 0.05); }
+.ephemeral-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* Toolbar */
+.msg-toolbar {
+    position: absolute; right: 1rem; top: -16px;
+    background-color: var(--bg-primary); border: 1px solid var(--divider);
+    border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: none; align-items: center; z-index: 50; padding: 2px;
 }
-.mention:hover { background: var(--button-bg); color: #fff; }
-
-/* Yellow highlight for messages that mention me */
-.message-mentioned {
-    background-color: var(--mention-highlight-bg) !important;
-    position: relative;
+.message-wrapper:hover .msg-toolbar { display: flex; }
+.toolbar-btn {
+    padding: 4px; cursor: pointer; color: var(--text-muted);
+    border-radius: 4px; transition: color 0.1s;
 }
-.message-mentioned::before {
-    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-    width: 2px; background-color: var(--mention-highlight-bar);
+.toolbar-btn:hover { background-color: var(--bg-tertiary); color: var(--text-normal); }
+
+/* SVG Utilities */
+.icon-svg { width: 1.25rem; height: 1.25rem; }
+.icon-svg-sm { width: 1rem; height: 1rem; }
+
+/* Settings Modal etc */
+#drag-overlay {
+    pointer-events: none; opacity: 0; transition: opacity 0.2s;
+    background: rgba(88, 101, 242, 0.9);
 }
+.dragging #drag-overlay { opacity: 1; pointer-events: auto; }
 
-/* Send Fail States */
-.message-sending { opacity: 0.5; } 
-.message-failed-text .message-content-text { color: #ed4245 !important; } /* 本体文字を赤に */
-.message-deleted-text-label { color: var(--text-secondary); opacity: 0.6; font-size: 0.8rem; margin-left: 5px; user-select: none; }
-
-.history-line { font-size: 0.9em; color: var(--text-secondary); opacity: 0.8; text-decoration: line-through; display: block; margin-bottom: 2px; }
-.edited-tag { font-size: 0.625rem; color: var(--text-secondary); margin-left: 4px; user-select: none; }
-
-.flash-highlight { animation: flash-yellow 1.5s ease-out forwards; }
-@keyframes flash-yellow { 0%, 20% { background-color: rgba(250, 166, 26, 0.2); } 100% { background-color: transparent; } }
-
-.reply-spine {
-    position: absolute; top: 50%; left: -26px; 
-    width: 46px; height: 14px;
-    border-left: 2px solid var(--reply-spine-color);
-    border-top: 2px solid var(--reply-spine-color);
-    border-top-left-radius: 6px; margin-top: -6px; pointer-events: none; z-index: 0;
-}
-
-/* Custom Context Menu */
-#custom-context-menu {
+.ctx-menu {
     position: fixed; z-index: 9999;
-    background: var(--bg-quaternary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px; padding: 4px 0;
-    min-width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    background: var(--bg-floating); border-radius: 4px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.24); padding: 6px 0;
+    min-width: 180px;
 }
 .ctx-item {
-    padding: 6px 12px; font-size: 0.9rem; color: var(--text-primary); cursor: pointer;
+    padding: 6px 12px; cursor: pointer; color: var(--text-muted); font-size: 14px;
+    display: flex; justify-content: space-between;
 }
-.ctx-item:hover { background: var(--button-bg); color: #fff; }
-.ctx-sep { height: 1px; background: var(--border-color); margin: 4px 0; }
+.ctx-item:hover { background-color: var(--discord-blurple); color: white; }
 
-.attachment-preview-item {
-    position: relative;
-}
-.attachment-remove-btn {
-    position: absolute; top: -5px; right: -5px; 
-    background: #ed4245; color: white; border-radius: 50%;
-    width: 16px; height: 16px; font-size: 10px; display: flex; 
-    align-items: center; justify-content: center; cursor: pointer;
-}
-
-/* Toggle Switch */
-.switch { position: relative; display: inline-block; width: 40px; height: 24px; }
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #80848e; transition: .4s; border-radius: 24px; }
-.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-input:checked + .slider { background-color: #3ba55c; }
-input:checked + .slider:before { transform: translateX(16px); }
-
-/* Settings */
-.settings-tab-item { padding: 6px 12px; border-radius: 4px; cursor: pointer; color: var(--text-secondary); font-weight: 500; }
-.settings-tab-item:hover { background-color: var(--hover-bg); color: var(--text-primary); }
-.settings-tab-item.active { background-color: var(--active-bg); color: var(--text-primary); cursor: default; }
-
-.plugin-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--bg-quaternary); }
-    </style>
+</style>
 </head>
-<body class="font-sans h-screen flex flex-col overflow-hidden bg-gray-200 dark:bg-gray-800 text-[var(--text-primary)]">
+<body class="font-sans h-screen flex flex-col overflow-hidden bg-[var(--bg-tertiary)]">
     
-    <div id="drag-overlay" class="fixed inset-0 z-[200] flex flex-col items-center justify-center backdrop-blur-sm m-4 rounded-3xl border-dashed">
-        <svg class="w-32 h-32 text-white animate-bounce mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-        <div class="text-white text-3xl font-bold">ドロップしてファイルをアップロード</div>
+    <!-- Drag Overlay -->
+    <div id="drag-overlay" class="fixed inset-0 z-[200] flex flex-col items-center justify-center m-4 rounded-xl border-4 border-dashed border-white">
+        <svg class="w-20 h-20 text-white animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+        <div class="text-white text-2xl font-bold mt-4">ファイルをアップロード</div>
     </div>
-    
-    <div id="custom-context-menu" class="hidden"></div>
 
-    <div id="settings-modal" class="hidden fixed inset-0 bg-black/50 z-[100] flex justify-center items-center backdrop-blur-sm">
-        <div class="bg-[var(--bg-secondary)] w-full max-w-3xl h-[85vh] rounded-lg shadow-2xl flex overflow-hidden scale-100 transition-transform">
-            <div class="w-1/3 bg-[var(--bg-secondary)] p-0 flex flex-col border-r" style="border-color: var(--bg-tertiary);">
-                <div class="p-4 font-bold text-xs uppercase text-[var(--text-secondary)] mt-4 mb-2 pl-6">Settings</div>
-                <div class="px-2 space-y-1">
-                    <div id="tab-btn-plugins" class="settings-tab-item active" onclick="switchSettingsTab('plugins')">Plugins</div>
-                    <div id="tab-btn-general" class="settings-tab-item" onclick="switchSettingsTab('general')">General</div>
-                </div>
+    <!-- Context Menu -->
+    <div id="ctx-menu" class="hidden ctx-menu"></div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center opacity-0 transition-opacity duration-200">
+        <div class="bg-[var(--bg-primary)] w-[800px] h-[600px] rounded flex overflow-hidden shadow-2xl scale-95 transition-transform duration-200" id="settings-inner">
+            <div class="w-[220px] bg-[var(--bg-secondary)] p-2 pt-8 flex flex-col gap-1 overflow-y-auto">
+                <div class="px-2 pb-2 text-xs font-bold text-[var(--text-muted)] uppercase">User Settings</div>
+                <div id="tab-btn-plugins" class="px-2 py-1.5 rounded cursor-pointer text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-normal)] active bg-[var(--bg-tertiary)] text-[var(--text-normal)]" onclick="switchSettingsTab('plugins')">プラグイン</div>
+                <div id="tab-btn-general" class="px-2 py-1.5 rounded cursor-pointer text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-normal)]" onclick="switchSettingsTab('general')">外観</div>
             </div>
-            <div class="flex-1 p-8 overflow-y-auto bg-[var(--bg-primary)] relative">
-                <div class="absolute top-6 right-8 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]" onclick="document.getElementById('settings-modal').classList.add('hidden')">
-                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <div class="flex-1 p-10 bg-[var(--bg-primary)] relative overflow-y-auto">
+                <div class="absolute top-4 right-4 text-[var(--text-muted)] hover:text-[var(--text-normal)] cursor-pointer" onclick="closeSettings()">
+                    <div class="p-1 border-2 border-[var(--text-muted)] rounded-full flex flex-col items-center justify-center h-8 w-8 text-sm font-bold">ESC</div>
                 </div>
                 
-                <div id="tab-content-plugins">
-                    <h2 class="text-2xl font-bold mb-6">Plugins</h2>
-                    <div id="plugin-list" class="space-y-4"></div>
+                <div id="tab-content-plugins" class="block">
+                    <h2 class="text-xl font-bold mb-6">プラグイン設定</h2>
+                    <div id="plugin-list" class="flex flex-col gap-4"></div>
                 </div>
-
+                
                 <div id="tab-content-general" class="hidden">
-                    <h2 class="text-2xl font-bold mb-6">General</h2>
-                    <h3 class="text-sm font-bold uppercase text-[var(--text-secondary)] mb-4">THEME</h3>
-                    <div class="flex gap-4">
-                        <div class="w-[140px] h-[90px] rounded-lg cursor-pointer flex items-center justify-center bg-[#2f3136] relative border-2 border-transparent hover:border-gray-500" onclick="setTheme('dark')">
-                            <span class="text-white font-bold">Dark</span>
-                            <div id="theme-check-dark" class="absolute top-2 right-2 w-4 h-4 bg-green-500 rounded-full"></div>
-                        </div>
-                        <div class="w-[140px] h-[90px] rounded-lg cursor-pointer flex items-center justify-center bg-white border border-gray-300 relative hover:border-gray-400" onclick="setTheme('light')">
-                            <span class="text-black font-bold">Light</span>
-                            <div id="theme-check-light" class="absolute top-2 right-2 w-4 h-4 bg-green-500 rounded-full hidden"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Login UI Omitted for Brevity (Same as provided but logic retained) -->
-    <div id="auth-section" class="w-full max-w-md m-auto p-8 rounded-lg shadow-xl flex-col bg-white dark:bg-gray-700 hidden relative z-50">
-        <div id="migration-view" class="hidden flex-col items-center justify-center mb-4"><div class="loader mb-2"></div><div class="text-sm font-bold">Loading...</div></div>
-        <div id="account-selection-view" class="hidden flex-col">
-            <h1 class="text-2xl font-bold text-center mb-6">おかえりなさい！</h1>
-            <div id="saved-accounts-list" class="space-y-2 mb-4 max-h-80 overflow-y-auto"></div>
-            <button type="button" id="show-add-account-form-btn" class="mt-2 text-sm text-[var(--text-secondary)] hover:underline text-center w-full">別のアカウントを追加</button>
-        </div>
-        <div id="token-input-view" class="hidden flex-col">
-            <h1 class="text-2xl font-bold text-center mb-2" id="auth-title">アカウントを追加</h1>
-            <div id="relogin-user-info" class="hidden flex-col items-center mb-4 p-4 bg-[var(--bg-primary)] rounded-lg">
-                <img id="relogin-avatar" src="" class="w-20 h-20 rounded-full mb-2 shadow-md">
-                <div id="relogin-name" class="font-bold text-lg"></div>
-                <div class="text-xs opacity-60">@<span id="relogin-username"></span></div>
-            </div>
-            <div id="login-error" class="text-red-500 text-xs mb-3 text-center"></div>
-            <form class="space-y-4" onsubmit="return false;">
-                <div class="text-xs text-[var(--text-secondary)] uppercase font-bold">トークン</div>
-                <input type="password" id="token-input" class="input-field w-full p-2.5 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-primary)]" placeholder="MTE...">
-                <button type="button" id="add-account-button" class="bg-blue-600 hover:bg-blue-700 w-full py-3 rounded-md font-bold text-white">ログイン</button>
-                <button type="button" id="back-to-accounts-btn" class="text-sm text-[var(--text-secondary)] hover:underline w-full py-2">戻る</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="main-app" class="hidden flex-1 flex-row min-h-0 relative">
-        <div id="sidebar-view" class="flex flex-row w-full h-full md:w-auto md:flex">
-            <div class="p-3 flex flex-col items-center gap-2 overflow-y-auto flex-shrink-0 no-scrollbar" style="background-color: var(--bg-tertiary);">
-                <div id="dm-icon" title="DM" class="server-icon bg-indigo-600 flex items-center justify-center cursor-pointer text-white font-black text-xl mb-1 hover:bg-indigo-500 transition-all duration-200 shrink-0 relative z-20">DM</div>
-                <div class="w-8 h-[2px] rounded-lg bg-[var(--bg-quaternary)] my-1 shrink-0"></div>
-                <div id="guild-list" class="flex flex-col items-center gap-2 w-full pb-4"></div>
-            </div>
-            
-            <div class="w-full md:w-60 flex flex-col border-r flex-1 min-h-0 bg-[var(--bg-secondary)]" style="border-color: var(--bg-tertiary);">
-                <div class="h-12 p-3 border-b font-bold truncate flex items-center shadow-sm select-none hover:bg-[var(--hover-bg)] cursor-pointer" id="guild-name" style="border-color: var(--bg-tertiary);"></div>
-                <div id="channel-list" class="flex-1 overflow-y-auto p-2"></div>
-                
-                <div class="relative flex-shrink-0 bg-[var(--bg-tertiary)]/80 backdrop-blur-md">
-                    <div id="user-info-panel" class="p-2.5 flex items-center gap-2 h-[58px] cursor-pointer" onclick="document.getElementById('account-switcher').classList.toggle('hidden')">
-                        <div class="relative w-9 h-9 flex-shrink-0">
-                            <div id="current-user-avatar-container" class="w-full h-full relative"></div>
-                        </div>
-                        <div class="flex-1 min-w-0 flex flex-col justify-center select-none">
-                             <div class="text-sm font-bold truncate leading-tight" id="current-user-name"></div>
-                             <div class="text-xs opacity-60 truncate leading-tight" id="current-user-subtext"></div>
-                        </div>
-                        <button id="open-settings-btn" class="p-2 hover:bg-[var(--active-bg)] rounded-md cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]" onclick="event.stopPropagation(); renderSettingsModal();">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path></svg>
-                        </button>
-                    </div>
-
-                    <div id="account-switcher" class="hidden absolute bottom-[110%] left-2 min-w-[240px] rounded-lg shadow-xl overflow-hidden border z-50 bg-[var(--popup-bg)]" style="border-color: var(--border-color);">
-                        <div id="account-list" class="max-h-60 overflow-y-auto p-1 space-y-0.5"></div>
-                        <div class="border-t p-1 mt-1" style="border-color: var(--border-color);">
-                            <div id="add-account-switcher-btn" class="text-sm p-2 rounded cursor-pointer hover:bg-indigo-500 hover:text-white flex items-center gap-2 transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                アカウントを追加
+                    <h2 class="text-xl font-bold mb-6">外観</h2>
+                    <div class="mb-4">
+                        <div class="text-sm font-bold text-[var(--text-muted)] mb-2 uppercase">テーマ</div>
+                        <div class="flex gap-4">
+                            <div class="w-32 h-20 bg-[#313338] rounded-lg border-2 border-transparent cursor-pointer ring-offset-2 ring-[var(--discord-blurple)] relative flex items-center justify-center group" id="theme-card-dark" onclick="setTheme('dark')">
+                                <span class="text-white font-bold">Dark</span>
+                                <div class="absolute top-2 right-2 w-4 h-4 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white hidden checked-mark">✓</div>
+                            </div>
+                            <div class="w-32 h-20 bg-white rounded-lg border border-gray-300 cursor-pointer flex items-center justify-center relative group" id="theme-card-light" onclick="setTheme('light')">
+                                <span class="text-black font-bold">Light</span>
+                                <div class="absolute top-2 right-2 w-4 h-4 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white hidden checked-mark">✓</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div id="chat-section" class="hidden flex-1 md:flex flex-col min-h-0 min-w-0 bg-[var(--bg-primary)] relative">
-            <div class="h-12 p-3 border-b flex items-center justify-between flex-shrink-0 shadow-sm" style="border-color: var(--bg-tertiary); background-color:var(--bg-secondary);">
-                <div class="font-bold flex items-center truncate">
-                    <button id="back-to-channels-btn" class="mr-3 p-1 rounded-full hover:bg-[var(--bg-tertiary)] md:hidden">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    <!-- Login / Auth -->
+    <div id="auth-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
+        <div class="bg-[var(--bg-primary)] p-8 rounded shadow-lg max-w-sm w-full">
+            <h2 class="text-2xl font-bold text-center mb-6">Welcome Back</h2>
+            <div id="auth-account-list" class="flex flex-col gap-2 max-h-60 overflow-y-auto mb-4"></div>
+            
+            <div id="auth-token-form" class="hidden">
+                <label class="block text-xs font-bold text-[var(--text-muted)] uppercase mb-2">Token</label>
+                <input type="password" id="input-token" class="w-full bg-[var(--bg-tertiary)] text-[var(--text-normal)] p-2 rounded outline-none border border-transparent focus:border-[var(--discord-blurple)]" placeholder="Token...">
+                <div id="auth-error" class="text-[var(--discord-red)] text-xs mt-2 h-4"></div>
+                <button id="btn-login" class="w-full bg-[var(--discord-blurple)] text-white font-medium p-2 rounded mt-4 hover:bg-opacity-90">ログイン</button>
+                <div class="text-xs text-[var(--text-link)] mt-2 cursor-pointer hover:underline text-center" onclick="showSavedAccounts()">保存されたアカウントに戻る</div>
+            </div>
+
+            <button id="btn-show-add" class="text-sm text-[var(--text-link)] block mx-auto hover:underline mt-2">別のアカウントを追加</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP LAYOUT -->
+    <div id="app-root" class="flex w-full h-full relative">
+        <!-- Sidebar: Guilds -->
+        <nav class="w-[72px] bg-[var(--bg-tertiary)] flex flex-col items-center py-3 overflow-y-auto no-scrollbar gap-2 shrink-0">
+            <div id="btn-dm" class="server-icon bg-[#5865F2]" title="ダイレクトメッセージ" onclick="loadDMs()">
+                <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" style="display:none"></path>
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" style="display:none"></path>
+                <!-- Official Discord Icon Lookalike -->
+                <path d="M19.73 4.87a18.2 18.2 0 00-4.6-1.44c-.21.4-.4.8-.58 1.21-1.69-.25-3.4-.25-5.1 0-.18-.41-.37-.82-.59-1.2-1.6.27-3.14.75-4.6 1.43.3 2.37.59 13.8 9.9 14.8" fill="none"></path>
+                <path d="M18.92 5.09C17.33 4.4 15.65 3.96 13.9 3.65c-.21.41-.41.83-.59 1.25-1.58-.23-3.18-.23-4.75 0-.19-.42-.39-.84-.6 1.25C6.31 4 4.63 4.44 3.06 5.09 1.94 11.23 3.32 17.15 7.15 20.84c1.86.84 3.77 1.34 5.37 1.48.24-.61.66-1.5 1.05-1.95-3.32-.47-5.07-2.3-5.07-2.3 2.76 1.35 5.75 1.57 7.74 1.35 0 0-1.72 1.83-5.03 2.3.38.45.8 1.35 1.05 1.95 1.59-.14 3.51-.64 5.37-1.48 3.51-3.6 5.06-9.13 4.14-15.35zM9.44 14.88c-1.13 0-2.07-1.03-2.07-2.28 0-1.26.91-2.28 2.07-2.28 1.17 0 2.1 1.02 2.1 2.28 0 1.25-.92 2.28-2.1 2.28zm5.11 0c-1.13 0-2.06-1.03-2.06-2.28 0-1.26.92-2.28 2.06-2.28 1.16 0 2.09 1.02 2.09 2.28 0 1.25-.92 2.28-2.09 2.28z"></path>
+                </svg>
+            </div>
+            <div class="w-8 h-[2px] rounded-lg bg-[var(--bg-secondary)] shrink-0"></div>
+            <div id="guild-list" class="flex flex-col items-center gap-2 w-full"></div>
+        </nav>
+
+        <!-- Sidebar: Channels -->
+        <div class="w-60 bg-[var(--bg-secondary)] flex flex-col shrink-0">
+            <div id="guild-header" class="h-12 border-b border-[var(--divider)] flex items-center px-4 font-bold shadow-sm hover:bg-[var(--channel-hover)] cursor-pointer truncate">
+                Discord Lite
+            </div>
+            <div id="channel-list" class="flex-1 overflow-y-auto p-2 no-scrollbar"></div>
+            
+            <!-- User Control -->
+            <div class="h-[52px] bg-[var(--bg-floating)] flex items-center px-2 gap-2 shrink-0">
+                <div class="w-8 h-8 relative rounded-full overflow-hidden cursor-pointer hover:opacity-80 group">
+                    <img id="current-user-avatar" src="" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <div id="current-user-name" class="text-sm font-bold truncate text-[var(--text-normal)]"></div>
+                    <div id="current-user-discriminator" class="text-xs text-[var(--text-muted)] truncate"></div>
+                </div>
+                <!-- User Setting Cog SVG (From User) -->
+                <button class="p-1.5 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-normal)] cursor-pointer" onclick="openSettings()">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="flex-1 flex flex-col min-w-0 bg-[var(--bg-primary)]">
+            <div class="h-12 border-b border-[var(--divider)] flex items-center px-4 font-bold shadow-sm shrink-0 bg-[var(--bg-primary)] z-20">
+                <span class="text-[var(--text-muted)] text-xl mr-2 font-thin" id="header-hash">#</span>
+                <span id="header-channel-name" class="truncate">Select a channel</span>
+            </div>
+            
+            <!-- Messages -->
+            <div id="message-container" class="flex-1 overflow-y-scroll p-4 space-y-0 relative">
+                <!-- Messages inserted here -->
+                <div class="h-full w-full flex items-center justify-center text-[var(--text-muted)] select-none">
+                    チャンネルを選択してください
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 bg-[var(--bg-primary)] shrink-0 z-30">
+                <!-- Reply Bar -->
+                <div id="reply-bar" class="bg-[var(--bg-tertiary)] px-4 py-2 text-xs text-[var(--text-muted)] flex justify-between items-center rounded-t-lg hidden border-b border-[var(--divider)]">
+                    <span class="truncate">Replying to <b id="reply-user">User</b></span>
+                    <button id="btn-cancel-reply" class="hover:text-[var(--text-normal)]">
+                        <svg class="icon-svg-sm" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 5.71a.9959.9959 0 0 0-1.41 0L12 10.59 7.11 5.7a.9959.9959 0 0 0-1.41 0c-.38.39-.39 1.03 0 1.42l4.89 4.89-4.89 4.89a.9959.9959 0 0 0 0 1.41c.39.38 1.03.39 1.42 0L12 13.41l4.89 4.89c.38.38 1.02.39 1.41 0 .39-.38.39-1.02 0-1.41L13.41 12l4.89-4.89c.38-.38.38-1.02 0-1.4z"/></svg>
                     </button>
-                    <span id="channel-name-text"></span>
                 </div>
-            </div>
-            
-            <div id="message-container" class="flex-1 overflow-y-auto p-4 space-y-0" style="background-color: var(--bg-primary);"></div>
-            
-            <div class="flex-shrink-0 pt-0">
-                <div id="attachment-list" class="hidden px-4 py-2 text-sm border-t flex flex-wrap gap-2 bg-[var(--bg-secondary)]" style="border-color: var(--bg-tertiary);"></div>
-                
-                <div class="px-4 pb-4 pt-1 bg-[var(--bg-primary)]">
-                    <div class="flex items-start gap-2 bg-[var(--bg-tertiary)] p-2 rounded-lg relative transition-all shadow-sm" style="min-height: 44px;">
-                        <input type="file" id="file-input" class="hidden" multiple>
-                        
-                        <button id="attach-button" class="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors mt-0.5">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-                        </button>
+                <!-- File Preview -->
+                <div id="file-preview-list" class="bg-[var(--bg-tertiary)] px-4 py-2 border-b border-[var(--divider)] flex gap-2 flex-wrap hidden rounded-t-lg"></div>
 
-                        <div class="relative w-full self-center">
-                            <div id="reply-bar" class="hidden flex items-center justify-between text-sm text-[var(--text-secondary)] mb-1 px-1 opacity-80">
-                                 <span class="truncate">Replying to <b id="reply-username"></b></span>
-                                 <button id="cancel-reply-btn" class="p-0.5 rounded-full hover:text-[var(--text-primary)]">
-                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-                                </button>
-                            </div>
-                            
-                            <textarea id="message-input" placeholder="メッセージを送信" class="input-field w-full bg-transparent p-1.5 text-[0.95rem] resize-none max-h-[50vh] focus:outline-none min-h-[24px]" rows="1"></textarea>
-                            <div id="char-counter" class="absolute bottom-1 right-1 text-[10px] font-mono font-bold text-[var(--text-secondary)] opacity-0 pointer-events-none select-none"></div>
-                        </div>
-                        
-                        <button id="send-button" class="p-2 rounded-lg text-[var(--button-bg)] hover:bg-[var(--hover-bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors self-end" disabled>
-                            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                        </button>
-                    </div>
+                <!-- Main Input -->
+                <div id="input-wrapper" class="bg-[var(--bg-tertiary)] p-3 rounded-lg flex items-start gap-2 border border-transparent focus-within:border-none relative shadow-inner">
+                    <button class="text-[var(--text-muted)] hover:text-[var(--text-normal)] p-1 rounded-full shrink-0" onclick="document.getElementById('file-input').click()">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                    </button>
+                    <input type="file" id="file-input" class="hidden" multiple>
+                    
+                    <textarea id="message-input" rows="1" placeholder="メッセージを送信" class="flex-1 bg-transparent text-[var(--text-normal)] resize-none py-1 px-1 focus:outline-none max-h-[40vh] min-h-[24px] overflow-hidden"></textarea>
+                    
+                    <!-- Character Counter (plugin) -->
+                    <div id="char-counter" class="hidden absolute bottom-[-18px] right-1 text-[10px] font-mono text-[var(--text-muted)] font-bold"></div>
                 </div>
             </div>
         </div>
     </div>
-    <script>
+
+<script>
+/**
+ * GLOBAL & STATE
+ */
 const API_BASE = 'https://discord.com/api/v10';
-let ws = null;
-let currentAccount = null;
-let currentChannel = null;
-let lastSequence = null;
-let heartbeatInterval = null;
-let replyingTo = null;
-let oldestMessageId = null;
-let isLoadingMore = false;
-let attachedFiles = [];
-let maxCharCount = 2000;
-let guildFolders = [];
-let guildDataMap = new Map();
-let openFolderId = null; 
-let pingCounts = {};
-let messageStore = {}; 
-let editedMessages = {}; 
-let dragCounter = 0;
+let WS = null;
+let ACCOUNTS = JSON.parse(localStorage.getItem('discord_lite_accounts') || '[]');
+let CURRENT_USER = null;
+let CURRENT_CHANNEL = null;
+let GUILDS = new Map();
+let GUILD_FOLDERS = [];
+let PENDING_FILES = [];
+let MESSAGE_CACHE = new Map(); // id -> msg object
+let IS_SENDING = false;
 
-const plugins = JSON.parse(localStorage.getItem('plugins')) || {
-    showMeYourName: false,
-    sendSeconds: false,
-    messageLogger: true,
-    clickAction: true,
-    showCharacter: true
-};
+// Plugins
+let PLUGINS = JSON.parse(localStorage.getItem('discord_lite_plugins') || JSON.stringify({
+    clickReply: true,
+    msgLogger: true,
+    showCharCount: true
+}));
 
-document.addEventListener('DOMContentLoaded', async () => {
-    if (localStorage.theme === 'dark' || (!localStorage.theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
+const PLUGIN_DEFS = [
+    {key: 'clickReply', name:'ダブルクリックで返信', desc: 'メッセージをダブルクリックして返信モードにします'},
+    {key: 'msgLogger', name:'メッセージログ', desc: '編集・削除されたメッセージを表示します'},
+    {key: 'showCharCount', name:'文字数カウント', desc: '入力ボックスの右下に文字数を表示します'},
+];
+
+/**
+ * INITIALIZATION
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    // Theme
+    setTheme(localStorage.getItem('discord_lite_theme') || 'dark');
+    
+    // Auth Check
+    const lastId = localStorage.getItem('discord_lite_last_uid');
+    if(ACCOUNTS.length > 0 && lastId) {
+        loginUser(lastId);
+    } else if (ACCOUNTS.length > 0) {
+        showSavedAccounts();
+    } else {
+        showTokenForm();
     }
-    
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('click', () => document.getElementById('custom-context-menu').classList.add('hidden'));
 
-    // Paste Support
-    document.body.addEventListener('paste', e => {
-        const files = e.clipboardData.files;
-        if (files.length > 0) {
-            e.preventDefault();
-            handleFiles(files);
-        }
-    });
-    
-    // Drag & Drop
-    const overlay = document.getElementById('drag-overlay');
-    document.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; document.body.classList.add('dragging'); });
-    document.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if(dragCounter===0) document.body.classList.remove('dragging'); });
-    document.addEventListener('dragover', e => e.preventDefault());
-    document.addEventListener('drop', (e) => {
-        e.preventDefault(); dragCounter = 0; document.body.classList.remove('dragging');
-        handleFiles(e.dataTransfer.files);
-    });
+    // Input handlers
+    const area = document.getElementById('message-input');
+    area.addEventListener('input', handleInputResize);
+    area.addEventListener('keydown', handleEnterKey);
 
-    document.getElementById('dm-icon').onclick = loadDms;
-    document.getElementById('send-button').onclick = sendMessage;
-    
-    document.getElementById('attach-button').onclick = () => document.getElementById('file-input').click();
-    document.getElementById('file-input').onchange = (e) => handleFiles(e.target.files);
-
-    document.getElementById('cancel-reply-btn').onclick = cancelReply;
-    
-    const input = document.getElementById('message-input');
-    input.oninput = handleInput;
-    input.onkeydown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-        if (e.key === 'ArrowUp' && input.value === '') {
-            e.preventDefault();
-            editLastOwnMessage();
-        }
-    };
-
-    document.getElementById('back-to-channels-btn').onclick = showSidebarView;
-    document.getElementById('open-settings-btn').onclick = (e) => { e.stopPropagation(); renderSettingsModal(); };
-    document.getElementById('add-account-switcher-btn').onclick = () => { document.getElementById('account-switcher').classList.add('hidden'); showLoginScreen(); };
-    document.getElementById('show-add-account-form-btn').onclick = () => showTokenInput();
-    document.getElementById('back-to-accounts-btn').onclick = () => { document.getElementById('token-input-view').classList.add('hidden'); document.getElementById('account-selection-view').classList.remove('hidden'); document.getElementById('account-selection-view').classList.add('flex'); };
-
-    window.addEventListener('resize', handleResize);
-
-    const accounts = getAccounts();
-    const activeId = getActiveAccountId();
-    if (accounts.length > 0 && activeId) switchAccount(activeId);
-    else showLoginScreen();
+    // D&D
+    setupDragDrop();
 });
 
-const getAccounts = () => JSON.parse(localStorage.getItem('accounts')) || [];
-const saveAccounts = a => localStorage.setItem('accounts', JSON.stringify(a));
-const getActiveAccountId = () => localStorage.getItem('activeAccountId');
-const setActiveAccountId = id => localStorage.setItem('activeAccountId', id);
-
-function handleFiles(files) {
-    if(attachedFiles.length >= 10) return alert('添付ファイルは最大10個までです');
-    for (let f of files) {
-        if(attachedFiles.length < 10) attachedFiles.push(f);
-    }
-    renderAttachments();
-    handleInput();
+/* THEME SYSTEM */
+function setTheme(t) {
+    document.documentElement.className = t;
+    localStorage.setItem('discord_lite_theme', t);
+    // update modal UI
+    document.getElementById('theme-card-dark').querySelector('.checked-mark').classList.toggle('hidden', t!=='dark');
+    document.getElementById('theme-card-light').querySelector('.checked-mark').classList.toggle('hidden', t!=='light');
+    document.getElementById('theme-card-dark').classList.toggle('ring-2', t==='dark');
+    document.getElementById('theme-card-light').classList.toggle('ring-2', t==='light');
 }
 
-function renderAttachments() {
-    const list = document.getElementById('attachment-list');
-    list.innerHTML = '';
-    if(attachedFiles.length === 0) { list.classList.add('hidden'); return; }
-    list.classList.remove('hidden');
-    
-    attachedFiles.forEach((f, idx) => {
-        const d = document.createElement('div');
-        d.className = "bg-[var(--bg-tertiary)] px-2 py-1 rounded text-xs flex items-center attachment-preview-item border border-[var(--border-color)]";
-        d.innerHTML = `<span class="truncate max-w-[150px]">${f.name}</span><div class="attachment-remove-btn">×</div>`;
-        d.querySelector('.attachment-remove-btn').onclick = () => {
-            attachedFiles.splice(idx, 1);
-            renderAttachments();
-            handleInput();
-        };
-        list.appendChild(d);
-    });
-}
-
-function clearAttachments() {
-    attachedFiles = [];
-    document.getElementById('file-input').value = "";
-    renderAttachments();
-    handleInput();
-}
-
-async function apiRequest(token, path, method = 'GET', body = null, isFormData = false) {
-    const opts = { method, headers: { 'Authorization': token, 'X-Super-Properties': btoa(JSON.stringify({ os: "Windows", browser: "Chrome", device: "", system_locale: "ja", client_build_number: 262355 })) } };
-    if (body) {
-        if (isFormData) opts.body = body;
-        else { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
+/* API WRAPPER */
+async function req(endpoint, method='GET', body=null, isForm=false) {
+    if(!CURRENT_USER) return {error:true};
+    const headers = {
+        'Authorization': CURRENT_USER.token,
+        'X-Super-Properties': btoa(JSON.stringify({os:"Windows",browser:"Chrome",device:"",system_locale:"ja",client_build_number:262355}))
+    };
+    if(body && !isForm) {
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify(body);
     }
     try {
-        const r = await fetch(`${API_BASE}${path}`, opts);
-        if (r.status === 401) return { error: { message: "Unauthorized" }, status: 401 };
-        const data = r.status === 204 ? {} : await r.json();
-        if (!r.ok) return { error: data, status: r.status };
-        return { data, status: r.status };
-    } catch (e) { return { error: { message: "Network error" }, status: 0 }; }
+        const res = await fetch(API_BASE + endpoint, { method, headers, body });
+        if(res.status === 204) return {ok:true};
+        if(!res.ok) throw await res.json();
+        return await res.json();
+    } catch(e) {
+        console.error(e);
+        return {error: e};
+    }
 }
 
-function cleanupState() {
-    if (ws) { ws.onclose = null; ws.close(); ws = null; }
-    currentChannel = null; attachedFiles = [];
-    if (heartbeatInterval) clearInterval(heartbeatInterval);
-    document.getElementById('guild-list').innerHTML = '';
-    document.getElementById('channel-list').innerHTML = '';
-    document.getElementById('message-container').innerHTML = '';
-    document.getElementById('guild-name').innerText = '';
-    messageStore = {}; guildDataMap.clear(); editedMessages = {}; pingCounts = {};
-    cancelReply(); clearAttachments();
-}
+/* WEBSOCKET */
+function connectGateway() {
+    if(WS) WS.close();
+    WS = new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json');
+    let sequence = null;
+    let hbInterval = null;
 
-function switchAccount(id) {
-    cleanupState();
-    setActiveAccountId(id);
-    const acc = getAccounts().find(a => a.id === id);
-    if (!acc) { showLoginScreen(); return; }
-    currentAccount = acc;
-    maxCharCount = (currentAccount.premium_type === 2) ? 4000 : 2000;
-    updateView('app'); renderCurrentUserPanel(); loadGuilds();
-    setTimeout(connectWS, 100);
-}
+    WS.onmessage = (event) => {
+        const p = JSON.parse(event.data);
+        if(p.s) sequence = p.s;
 
-function updateView(view) {
-    const auth = document.getElementById('auth-section');
-    const app = document.getElementById('main-app');
-    if (view === 'auth') { auth.classList.remove('hidden'); auth.classList.add('flex'); app.classList.add('hidden'); } 
-    else { auth.classList.add('hidden'); app.classList.remove('hidden'); app.classList.add('flex'); if(window.innerWidth<768) showSidebarView(); }
-}
-
-function showLoginScreen() {
-    cleanupState(); updateView('auth');
-    document.getElementById('token-input-view').classList.add('hidden');
-    renderSavedAccountsList();
-    const accs = getAccounts();
-    if(accs.length>0) {
-        document.getElementById('account-selection-view').classList.remove('hidden');
-        document.getElementById('account-selection-view').classList.add('flex');
-    } else showTokenInput();
-}
-
-function showTokenInput() {
-    document.getElementById('account-selection-view').classList.add('hidden');
-    document.getElementById('account-selection-view').classList.remove('flex');
-    document.getElementById('token-input-view').classList.remove('hidden');
-    document.getElementById('token-input-view').classList.add('flex');
-    document.getElementById('add-account-button').onclick = () => addAccount(document.getElementById('token-input').value);
-}
-
-function handleResize() { if (window.innerWidth >= 768) { document.getElementById('sidebar-view').classList.remove('hidden'); } }
-function showSidebarView() { document.getElementById('sidebar-view').classList.remove('hidden'); document.getElementById('chat-section').classList.add('hidden'); }
-function showChatView() { document.getElementById('sidebar-view').classList.add('hidden'); document.getElementById('chat-section').classList.remove('hidden'); document.getElementById('chat-section').classList.add('flex'); }
-
-function renderSavedAccountsList() {
-    const list = document.getElementById('saved-accounts-list');
-    list.innerHTML = '';
-    getAccounts().forEach(acc => {
-        const d = document.createElement('div');
-        d.className = "flex items-center gap-3 p-3 border rounded hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer";
-        d.style.borderColor = 'var(--border-color)';
-        const av = acc.avatar ? `https://cdn.discordapp.com/avatars/${acc.id}/${acc.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${acc.discriminator % 5}.png`;
-        d.innerHTML = `<img src="${av}" class="w-10 h-10 rounded-full bg-gray-300"><div class="flex-1 min-w-0"><div class="font-bold truncate">${acc.global_name || acc.username}</div></div><div class="delete-btn p-2 text-red-400">×</div>`;
-        d.onclick = (e) => { if(!e.target.classList.contains('delete-btn')) switchAccount(acc.id); };
-        d.querySelector('.delete-btn').onclick = (e) => deleteAccount(acc.id, e);
-        list.appendChild(d);
-    });
-}
-
-function renderCurrentUserPanel() {
-    if (!currentAccount) return;
-    document.getElementById('current-user-name').innerText = currentAccount.global_name || currentAccount.username;
-    document.getElementById('current-user-subtext').innerText = `@${currentAccount.username}`;
-    const av = currentAccount.avatar ? `https://cdn.discordapp.com/avatars/${currentAccount.id}/${currentAccount.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${currentAccount.discriminator % 5}.png`;
-    let deco = '';
-    if(currentAccount.avatar_decoration_data) deco = `<img src="https://cdn.discordapp.com/avatar-decoration-presets/${currentAccount.avatar_decoration_data.asset}.png?size=96" class="avatar-decoration">`;
-    document.getElementById('current-user-avatar-container').innerHTML = `<img src="${av}" class="avatar-img shadow-sm rounded-full">${deco}`;
-    renderAccountSwitcher();
-}
-
-function renderAccountSwitcher() {
-    const list = document.getElementById('account-list');
-    list.innerHTML = getAccounts().map(acc => {
-        const av = acc.avatar ? `https://cdn.discordapp.com/avatars/${acc.id}/${acc.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${acc.discriminator % 5}.png`;
-        return `<div class="flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-[var(--button-bg)] hover:text-white group" onclick="switchAccount('${acc.id}')">
-            <img src="${av}" class="w-8 h-8 rounded-full"><span class="flex-1 truncate text-sm font-semibold">${acc.global_name || acc.username}</span>
-            <div onclick="deleteAccount('${acc.id}',event)" title="削除" class="hidden group-hover:block px-2 text-sm hover:text-red-300">×</div>
-        </div>`;
-    }).join('');
-}
-
-function createServerIconElement(s, isInFolder=false) {
-    let el = document.createElement('div'); el.id = `guild-${s.id}`; 
-    el.className = 'server-icon group ' + (isInFolder?'in-folder':''); el.dataset.guildId = s.id;
-    el.title = s.name;
-    el.innerHTML = s.icon ? `<img src="https://cdn.discordapp.com/icons/${s.id}/${s.icon}.png?size=128" class="object-cover w-full h-full">` : `<div class="w-full h-full flex items-center justify-center bg-gray-700 text-white font-bold text-sm rounded-full transition-all group-hover:rounded-2xl">${s.name.substring(0,2)}</div>`;
-    el.onclick = () => loadChannels(s, el);
-    return el;
-}
-
-function renderFolders() {
-    const list = document.getElementById('guild-list'); list.innerHTML = '';
-    guildFolders.forEach(item => {
-        if (item.guild_ids && item.id) {
-            const folderWrap = document.createElement('div');
-            folderWrap.className = 'flex flex-col items-center gap-2 w-full transition-all';
-            const childs = item.guild_ids.map(id => guildDataMap.get(id)).filter(Boolean);
-            if(childs.length===0) return;
-            
-            const header = document.createElement('div'); header.className = 'folder-closed group';
-            let fColor = item.color ? `rgba(${(item.color>>16)&255},${(item.color>>8)&255},${item.color&255},0.4)` : 'rgba(88,101,242,0.4)';
-            header.style.backgroundColor = fColor;
-            
-            const makeMini = () => { header.innerHTML=''; childs.slice(0,4).forEach(g=>{header.innerHTML+=`<img class="folder-icon-thumb" src="${g.icon?`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`:`https://cdn.discordapp.com/embed/avatars/0.png`}">`}) };
-            makeMini();
-
-            const body = document.createElement('div'); body.className = 'hidden flex-col gap-2 items-center w-full py-1';
-            childs.forEach(g => body.appendChild(createServerIconElement(g, true)));
-            
-            header.onclick = () => {
-                if(openFolderId === item.id) { openFolderId = null; body.classList.replace('flex','hidden'); header.classList.replace('folder-opened','folder-closed'); header.style.backgroundColor=fColor; makeMini(); }
-                else {
-                    if(openFolderId) document.querySelector(`#guild-list .folder-opened`)?.click();
-                    openFolderId=item.id; body.classList.replace('hidden','flex'); header.classList.replace('folder-closed','folder-opened');
-                    header.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`.replace('M19 13','M20 7H12L10 5H4C2.9 5 2.01 5.9 2.01 7L2 19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V9C22 7.9 21.1 7 20 7Z');
+        if(p.op === 10) { // Hello
+            hbInterval = setInterval(() => {
+                WS.send(JSON.stringify({op:1, d: sequence}));
+            }, p.d.heartbeat_interval);
+            // Identify
+            WS.send(JSON.stringify({
+                op: 2,
+                d: {
+                    token: CURRENT_USER.token,
+                    properties: {$os:"linux", $browser:"disco_lite", $device:"disco_lite"},
                 }
-            };
-            folderWrap.appendChild(header); folderWrap.appendChild(body); list.appendChild(folderWrap);
-        } else item.guild_ids?.forEach(gid => { const s=guildDataMap.get(gid); if(s) list.appendChild(createServerIconElement(s)); });
+            }));
+        }
+        else if(p.t === 'READY') {
+            if(p.d.user_settings && p.d.user_settings.guild_folders) {
+                GUILD_FOLDERS = p.d.user_settings.guild_folders;
+            }
+            renderGuilds();
+        }
+        else if(p.t === 'MESSAGE_CREATE') {
+            if(CURRENT_CHANNEL && p.d.channel_id === CURRENT_CHANNEL.id) {
+                // If the message is from me, replace my temp "sending" message logic
+                // For simplicity, we just append newly. The local "fake" one will be replaced/removed if mapped by nonce
+                appendMessage(p.d, false, true); 
+            }
+        }
+        else if(p.t === 'MESSAGE_UPDATE') {
+            const m = MESSAGE_CACHE.get(p.d.id);
+            if(m) {
+                if(PLUGINS.msgLogger) {
+                    // Update cache but keep old history if content changed
+                    // Simplified implementation: rerender
+                }
+                // Naive implementation: merge and replace
+                const newM = {...m, ...p.d};
+                MESSAGE_CACHE.set(p.d.id, newM);
+                const oldEl = document.getElementById('msg-'+p.d.id);
+                if(oldEl) {
+                    const groupMode = oldEl.querySelector('.avatar-container') === null; // kinda hacky detection
+                    const newEl = createMessageElement(newM, groupMode);
+                    oldEl.replaceWith(newEl);
+                }
+            }
+        }
+        else if(p.t === 'MESSAGE_DELETE') {
+            const el = document.getElementById('msg-'+p.d.id);
+            if(el) {
+                if(PLUGINS.msgLogger) {
+                    el.classList.add('message-deleted');
+                    // Ensure the content turns red via class
+                } else {
+                    el.remove();
+                }
+            }
+        }
+    };
+    WS.onclose = () => { if(hbInterval) clearInterval(hbInterval); setTimeout(connectGateway, 3000); }
+}
+
+/* LOGIN UI FLOW */
+function showTokenForm() {
+    document.getElementById('auth-overlay').classList.remove('hidden');
+    document.getElementById('auth-account-list').classList.add('hidden');
+    document.getElementById('auth-token-form').classList.remove('hidden');
+    document.getElementById('auth-account-list').innerHTML = '';
+}
+
+function showSavedAccounts() {
+    document.getElementById('auth-overlay').classList.remove('hidden');
+    document.getElementById('auth-account-list').classList.remove('hidden');
+    document.getElementById('auth-token-form').classList.add('hidden');
+    const list = document.getElementById('auth-account-list');
+    list.innerHTML = '';
+    ACCOUNTS.forEach(acc => {
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded border border-gray-200 dark:border-gray-600";
+        div.innerHTML = `<img src="https://cdn.discordapp.com/avatars/${acc.id}/${acc.avatar}.png?size=32" class="w-8 h-8 rounded-full"><span class="font-bold text-[var(--text-normal)]">${acc.username}</span>`;
+        div.onclick = () => loginUser(acc.id);
+        list.appendChild(div);
     });
-}
-
-async function loadGuilds() {
-    if (!currentAccount) return;
-    const res = await apiRequest(currentAccount.token, '/users/@me/guilds');
-    if (res.error) { if (res.status === 401) showLoginScreen(); return; }
-    guildDataMap.clear(); res.data.forEach(s => guildDataMap.set(s.id, s));
-    if (guildFolders.length > 0) renderFolders();
-    else { const list=document.getElementById('guild-list'); list.innerHTML=''; res.data.forEach(s=>list.appendChild(createServerIconElement(s))); }
-}
-
-async function loadDms() {
-    document.querySelectorAll('.server-icon.active').forEach(e => e.classList.remove('active'));
-    document.getElementById('dm-icon').classList.add('active');
-    document.getElementById('guild-name').innerText = 'Direct Messages';
-    const res = await apiRequest(currentAccount.token, '/users/@me/channels');
-    const list = document.getElementById('channel-list'); list.innerHTML = '';
-    if(res.data) res.data.sort((a,b)=>(b.last_message_id||0)-(a.last_message_id||0)).forEach(dm => {
-        const d = document.createElement('div');
-        d.className = "channel-item p-1.5 pl-3 rounded-md cursor-pointer mb-0.5 text-[0.95em] truncate flex items-center";
-        d.onclick = () => selectChannel(dm);
-        d.id = `channel-${dm.id}`;
-        let name = "DM", av = "";
-        if(dm.recipients?.[0]) { name = dm.recipients[0].global_name || dm.recipients[0].username; av=`<img src="https://cdn.discordapp.com/avatars/${dm.recipients[0].id}/${dm.recipients[0].avatar}.png?size=32" class="w-5 h-5 mr-2 rounded-full">`; }
-        d.innerHTML = `${av||'<span class="text-xl mr-2 text-gray-500">@</span>'}<span>${name}</span>`;
-        list.appendChild(d);
-    });
-    updatePingDots();
-}
-
-async function loadChannels(g, el) {
-    document.querySelectorAll('.server-icon.active').forEach(e => e.classList.remove('active'));
-    if(el) el.classList.add('active');
-    document.getElementById('guild-name').innerText = g.name;
-    const res = await apiRequest(currentAccount.token, `/guilds/${g.id}/channels`);
-    const list = document.getElementById('channel-list'); list.innerHTML = '';
-    if(!res.data) return;
-    const groups = res.data.reduce((a,c)=>{ (a[c.parent_id||'null']=a[c.parent_id||'null']||[]).push(c); return a; }, {});
     
-    const render = (c, cat) => {
-        if(![0,5,2].includes(c.type)) return;
-        const d=document.createElement('div'); d.id=`channel-${c.id}`; d.dataset.channelId = c.id;
-        d.className=`channel-item p-1.5 pl-3 rounded-md cursor-pointer mb-0.5 flex items-center ${cat?'ml-2':''} ${c.type===2?'opacity-50':''}`;
-        d.innerHTML = (c.type===2?'<svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>':'<span class="text-lg mr-2 text-gray-500">#</span>') + `<span class="truncate font-medium">${c.name}</span>`;
-        if(c.type!==2) d.onclick = () => selectChannel(c);
-        list.appendChild(d);
+    // Login btn
+    const btn = document.getElementById('btn-show-add');
+    btn.onclick = showTokenForm;
+}
+
+document.getElementById('btn-login').onclick = async () => {
+    const t = document.getElementById('input-token').value.trim();
+    if(!t) return;
+    const res = await fetch('https://discord.com/api/v10/users/@me', {headers:{Authorization:t}});
+    if(res.ok) {
+        const u = await res.json();
+        const existing = ACCOUNTS.findIndex(a => a.id === u.id);
+        u.token = t;
+        if(existing !== -1) ACCOUNTS[existing] = u;
+        else ACCOUNTS.push(u);
+        localStorage.setItem('discord_lite_accounts', JSON.stringify(ACCOUNTS));
+        loginUser(u.id);
+    } else {
+        document.getElementById('auth-error').innerText = "トークンが無効です";
+    }
+};
+
+function loginUser(uid) {
+    const u = ACCOUNTS.find(a => a.id === uid);
+    if(!u) return showTokenForm();
+    
+    CURRENT_USER = u;
+    localStorage.setItem('discord_lite_last_uid', uid);
+    
+    // UI Update
+    document.getElementById('auth-overlay').classList.add('hidden');
+    const ava = u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${u.discriminator%5}.png`;
+    document.getElementById('current-user-avatar').src = ava;
+    document.getElementById('current-user-name').innerText = u.global_name || u.username;
+    document.getElementById('current-user-discriminator').innerText = '@'+u.username;
+
+    // Load Data
+    loadGuilds();
+    connectGateway();
+}
+
+/* DATA LOADING */
+async function loadGuilds() {
+    const list = document.getElementById('guild-list');
+    list.innerHTML = ''; // Reset
+    
+    // Cache guilds map
+    const res = await req('/users/@me/guilds');
+    if(!Array.isArray(res)) return; // Error handle
+
+    res.forEach(g => GUILDS.set(g.id, g));
+
+    // Simple Render logic: iterate guilds, check if in folder
+    // For Discord Lite simplicity, skipping complex folder rendering for now, just flat list unless structure is critical
+    // Let's implement flat list + folder grouping basic logic if array is populated
+    
+    res.forEach(g => {
+        const div = document.createElement('div');
+        div.className = "server-icon";
+        div.innerHTML = g.icon ? 
+            `<img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64">` : 
+            `<div class="text-sm font-bold">${g.name.substring(0,2)}</div>`;
+        div.dataset.id = g.id;
+        div.onclick = () => selectGuild(g.id, div);
+        div.oncontextmenu = (e) => showCtx(e, [
+            {label: 'サーバーIDをコピー', action: ()=>copyTxt(g.id)}
+        ]);
+        list.appendChild(div);
+    });
+}
+
+async function selectGuild(gid, el) {
+    document.querySelectorAll('.server-icon').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    
+    document.getElementById('guild-header').innerText = GUILDS.get(gid).name;
+    document.getElementById('header-hash').classList.add('hidden');
+    document.getElementById('header-channel-name').innerText = '...';
+    
+    // Load Channels
+    const cList = document.getElementById('channel-list');
+    cList.innerHTML = '<div class="loader m-4"></div>';
+    
+    const chans = await req(`/guilds/${gid}/channels`);
+    cList.innerHTML = '';
+    
+    if(Array.isArray(chans)) {
+        renderChannelList(chans, cList);
+    }
+}
+
+async function loadDMs() {
+    document.querySelectorAll('.server-icon').forEach(e => e.classList.remove('active'));
+    document.getElementById('btn-dm').classList.add('active');
+    document.getElementById('guild-header').innerText = "ダイレクトメッセージ";
+    const cList = document.getElementById('channel-list');
+    cList.innerHTML = '<div class="loader m-4"></div>';
+    
+    const dms = await req('/users/@me/channels');
+    cList.innerHTML = '';
+    
+    dms.sort((a,b) => (b.last_message_id||0) - (a.last_message_id||0));
+    dms.forEach(c => {
+        const row = document.createElement('div');
+        row.className = "channel-item px-2 py-1.5 rounded flex items-center cursor-pointer mb-[1px]";
+        
+        let name = "DM";
+        let icon = `<div class="w-8 h-8 rounded-full bg-[var(--discord-blurple)] mr-2 flex items-center justify-center text-white text-xs">@</div>`;
+        if(c.recipients && c.recipients[0]) {
+            const u = c.recipients[0];
+            name = u.global_name || u.username;
+            icon = `<img src="https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=32" class="w-8 h-8 rounded-full mr-2">`;
+        }
+        row.innerHTML = `${icon}<div class="truncate font-medium">${name}</div>`;
+        row.onclick = () => selectChannel(c);
+        cList.appendChild(row);
+    });
+}
+
+/* CHANNEL RENDERING (NESTED) */
+function renderChannelList(channels, container) {
+    // 0=Text, 2=Voice, 4=Category, 5=Announcement
+    const categories = channels.filter(c => c.type === 4).sort((a,b) => a.position - b.position);
+    const noCat = channels.filter(c => c.type !== 4 && !c.parent_id).sort((a,b) => a.position - b.position);
+    const grouped = new Map(); // parent_id -> array
+
+    channels.forEach(c => {
+        if(c.parent_id) {
+            if(!grouped.has(c.parent_id)) grouped.set(c.parent_id, []);
+            grouped.get(c.parent_id).push(c);
+        }
+    });
+
+    const createChEl = (c) => {
+        const el = document.createElement('div');
+        el.className = `channel-item px-2 py-1.5 rounded mb-[1px] cursor-pointer flex items-center text-[var(--text-muted)] hover:bg-[var(--channel-hover)] ${c.type===2 ? 'opacity-70':''}`;
+        let icon = '#';
+        if(c.type===5) icon = '📢'; 
+        if(c.type===2) icon = '🔊';
+
+        el.innerHTML = `<span class="mr-1.5 text-lg font-thin leading-none opacity-60">${icon}</span><span class="truncate font-medium">${c.name}</span>`;
+        if(c.type !== 2) {
+            el.onclick = () => selectChannel(c);
+            el.dataset.id = c.id;
+            el.oncontextmenu = (e) => showCtx(e, [{label: 'IDをコピー', action: ()=>copyTxt(c.id)}]);
+        }
+        return el;
+    };
+
+    // Render No Category first
+    noCat.forEach(c => container.appendChild(createChEl(c)));
+
+    // Render Categories
+    categories.forEach(cat => {
+        const wrapper = document.createElement('div');
+        wrapper.className = "mt-4";
+        const header = document.createElement('div');
+        header.className = "flex items-center text-xs font-bold text-[var(--text-muted)] uppercase hover:text-[var(--text-normal)] cursor-pointer mb-1 px-1";
+        header.innerHTML = `<svg class="cat-arrow w-3 h-3 mr-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg> ${cat.name}`;
+        header.onclick = () => {
+            wrapper.classList.toggle('category-collapsed');
+            const kidContainer = wrapper.querySelector('.cat-children');
+            kidContainer.classList.toggle('hidden');
+        };
+
+        const children = document.createElement('div');
+        children.className = "cat-children";
+        const kids = grouped.get(cat.id) || [];
+        kids.sort((a,b) => a.position - b.position);
+        
+        kids.forEach(k => children.appendChild(createChEl(k)));
+        
+        wrapper.appendChild(header);
+        wrapper.appendChild(children);
+        container.appendChild(wrapper);
+    });
+}
+
+/* CHAT LOGIC */
+async function selectChannel(c) {
+    if(c.id === CURRENT_CHANNEL?.id) return;
+    CURRENT_CHANNEL = c;
+    MESSAGE_CACHE.clear();
+    
+    document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+    const el = document.querySelector(`.channel-item[data-id="${c.id}"]`);
+    if(el) el.classList.add('active');
+
+    const titleName = c.name || (c.recipients ? c.recipients[0].username : "Chat");
+    document.getElementById('header-hash').innerText = (c.type===0||c.type===5) ? '#' : '@';
+    document.getElementById('header-hash').classList.remove('hidden');
+    document.getElementById('header-channel-name').innerText = titleName;
+
+    const container = document.getElementById('message-container');
+    container.innerHTML = `<div class="w-full h-full flex items-center justify-center"><div class="animate-spin h-8 w-8 border-4 border-[var(--discord-blurple)] rounded-full border-t-transparent"></div></div>`;
+
+    const msgs = await req(`/channels/${c.id}/messages?limit=50`);
+    container.innerHTML = '';
+    
+    // Wrapper for comfortable spacing
+    const padDiv = document.createElement('div');
+    padDiv.className = "flex flex-col-reverse justify-end min-h-full pb-4";
+    container.appendChild(padDiv);
+    
+    if(Array.isArray(msgs)) {
+        msgs.forEach(m => MESSAGE_CACHE.set(m.id, m));
+        // Reverse needed for append flow
+        for (const msg of msgs) {
+            // Process backwards is tricky with "Grouping" if logic relies on "Previous".
+            // Since `msgs` is newest first (Discord API default), `msgs[0]` is latest.
+            // UI needs oldest on top. So `msgs` reverse is correct.
+        }
+        
+        const sorted = msgs.reverse();
+        sorted.forEach((m, idx) => {
+            // Grouping logic: Check if PREVIOUS message (idx-1) is same author
+            const prev = idx > 0 ? sorted[idx-1] : null;
+            let isGrouped = false;
+            if(prev && prev.author.id === m.author.id && !m.referenced_message && !prev.webhook_id && (new Date(m.timestamp)-new Date(prev.timestamp) < 300000)) {
+                // Also check if type isn't system (Join etc)
+                if(m.type === 0 || m.type === 19) isGrouped = true;
+            }
+            appendMessage(m, isGrouped, false); 
+        });
+        
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// Convert Discord Markdown -> HTML (Simple subset)
+function parseContent(txt) {
+    if(!txt) return '';
+    let t = txt
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-[var(--text-link)] hover:underline">$1</a>')
+        // Mentions <@ID>
+        .replace(/&lt;@!?(\d+)&gt;/g, '<span class="mention">@User</span>') 
+        // Emoji <a:name:id> or <:name:id> -> img
+        .replace(/&lt;(a?):(\w+):(\d+)&gt;/g, (match, a, name, id) => {
+            const ext = a ? 'gif' : 'png';
+            return `<img src="https://cdn.discordapp.com/emojis/${id}.${ext}" class="w-6 h-6 inline-block align-bottom" title=":${name}:" alt=":${name}:">`;
+        });
+    return t;
+}
+
+function createMessageElement(m, grouped) {
+    const wrapper = document.createElement('div');
+    wrapper.id = 'msg-'+m.id;
+    wrapper.className = `message-wrapper ${grouped ? 'mt-[2px] grouped' : 'mt-cozy'}`; // Add cozy margin
+    wrapper.dataset.authorId = m.author.id;
+    
+    // Check Plugins
+    if(PLUGINS.clickReply && !m.type_ephemeral) {
+        wrapper.addEventListener('dblclick', () => startReply(m));
+    }
+    // Mention Check
+    const mentionIds = m.mentions?.map(u=>u.id) || [];
+    if(m.content && m.content.includes(`<@${CURRENT_USER.id}>`) || mentionIds.includes(CURRENT_USER.id)) {
+        wrapper.style.backgroundColor = 'var(--mention-bg)';
+        const border = document.createElement('div');
+        border.style = "position:absolute;left:0;top:0;bottom:0;width:2px;background:#faa61a;";
+        wrapper.appendChild(border);
     }
     
-    (groups['null']||[]).sort((a,b)=>a.position-b.position).forEach(c=>render(c));
-    res.data.filter(c=>c.type===4).sort((a,b)=>a.position-b.position).forEach(c => {
-        const cat = document.createElement('div'); cat.className='px-2 pt-4 pb-1 text-xs font-bold uppercase text-[var(--text-secondary)] select-none cursor-pointer flex items-center';
-        cat.innerHTML = `<svg class="w-3 h-3 mr-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> ${c.name}`;
-        cat.onclick = () => { cat.nextElementSibling.classList.toggle('hidden'); cat.querySelector('svg').style.transform = cat.nextElementSibling.classList.contains('hidden')?'rotate(-90deg)':''; };
-        list.appendChild(cat);
-        const wrapper = document.createElement('div');
-        (groups[c.id]||[]).sort((a,b)=>a.position-b.position).forEach(ch=>wrapper.appendChild((()=>{const el=document.createElement('div'); render(ch,true); return list.lastChild;})()));
-        list.appendChild(wrapper);
-    });
-    updatePingDots();
+    // --- Context Menu Hook ---
+    wrapper.oncontextmenu = (e) => {
+        const opts = [
+            {label:'テキストをコピー', action:()=>copyTxt(m.content)},
+            {label:'IDをコピー', action:()=>copyTxt(m.id)},
+            {label:'返信', action:()=>startReply(m)},
+        ];
+        if(m.author.id === CURRENT_USER.id && !m.type_ephemeral) {
+            opts.push({label:'編集', action:()=>startEdit(m)});
+            opts.push({label:'削除', action:()=>deleteMsg(m.id)});
+        }
+        showCtx(e, opts);
+    };
+
+    // SYSTEM MESSAGES (Join, etc)
+    if(m.type === 7) {
+        wrapper.className = "px-4 py-1 text-[var(--text-muted)] flex items-center gap-2 text-sm mt-2 mb-1";
+        wrapper.innerHTML = `<svg class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg> <span><b>${m.author.global_name||m.author.username}</b> がサーバーに参加しました。</span>`;
+        return wrapper;
+    }
+
+    // NORMAL MESSAGE BUILD
+    
+    // Reference Line (Only if not grouped and has reference)
+    // Structure: Flex col inside wrapper. Reference first.
+    let refHTML = '';
+    if(m.referenced_message && !grouped) {
+        const rm = m.referenced_message;
+        const authName = rm.author ? (rm.author.global_name||rm.author.username) : "Unknown";
+        refHTML = `
+            <div class="reference-line" onclick="scrollToMsg('${rm.id}')">
+                <div class="reference-spine"></div>
+                <img src="${rm.author ? `https://cdn.discordapp.com/avatars/${rm.author.id}/${rm.author.avatar}.png?size=16` : ''}" class="w-4 h-4 rounded-full bg-gray-500">
+                <span class="font-bold hover:underline cursor-pointer">@${authName}</span>
+                <span class="truncate max-w-xs cursor-pointer hover:text-[var(--text-normal)]">${rm.content}</span>
+            </div>
+        `;
+    }
+
+    const row = document.createElement('div');
+    row.className = "msg-row";
+
+    // --- Left Col ---
+    const leftCol = document.createElement('div');
+    leftCol.className = "msg-left-col";
+
+    if(!grouped) {
+        const ava = m.author.avatar ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${m.author.discriminator%5}.png`;
+        let decoHTML = '';
+        if(m.author.avatar_decoration_data) {
+             const decURL = `https://cdn.discordapp.com/avatar-decoration-presets/${m.author.avatar_decoration_data.asset}.png?size=96`;
+             decoHTML = `<img src="${decURL}" class="avatar-decoration">`;
+        }
+        
+        leftCol.innerHTML = `
+            <div class="avatar-container">
+                <img src="${ava}" class="avatar-img shadow-sm group-hover:shadow-md transition">
+                ${decoHTML}
+            </div>
+        `;
+    } else {
+        // Empty gutter, timestamp on hover (omitted for brevity)
+        // Only show timestamp if desired
+        // leftCol.innerHTML = `<span class="text-[10px] hidden group-hover:block w-full text-right mt-1 opacity-50">${shortTime(m.timestamp)}</span>`;
+    }
+
+    // --- Right Col ---
+    const rightCol = document.createElement('div');
+    rightCol.className = "msg-right-col";
+
+    // Header (Name + Date) - Only if not grouped
+    if(!grouped) {
+        const u = m.author;
+        const colorStyle = m.member?.color ? `color: #${m.member.color.toString(16).padStart(6,'0')}` : '';
+        const botTag = u.bot ? `
+            <span class="bot-badge">
+                <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24"><path d="M5.5 12h2a.5.5 0 00.5-.5V8a2 2 0 012-2h4a2 2 0 012 2v3.5a.5.5 0 00.5.5h2a.5.5 0 00.5-.5V10a6 6 0 00-6-6h-2a6 6 0 00-6 6v1.5a.5.5 0 00.5.5z" fill="currentColor"/><path d="M7 16a2 2 0 114 0 2 2 0 01-4 0zM17 16a2 2 0 11-4 0 2 2 0 014 0z" fill="currentColor"/></svg>
+                APP
+            </span>` : '';
+
+        rightCol.innerHTML = `
+            <div class="msg-header">
+                <span class="msg-username" style="${colorStyle}">${m.member?.nick || u.global_name || u.username}</span>
+                ${botTag}
+                <span class="msg-timestamp">${longTime(m.timestamp)}</span>
+            </div>
+        `;
+    }
+
+    // Content Body
+    let contentBody = parseContent(m.content);
+    if(m.edited_timestamp) contentBody += ' <span class="text-[0.625rem] text-[var(--text-muted)] cursor-help select-none" title="Edited">(編集済)</span>';
+    
+    // Attachments
+    let attHTML = '';
+    if(m.attachments && m.attachments.length > 0) {
+        attHTML += '<div class="flex flex-col gap-2 mt-2">';
+        m.attachments.forEach(a => {
+            if(a.content_type?.startsWith('image/')) {
+                attHTML += `<a href="${a.url}" target="_blank"><img src="${a.url}" class="max-w-[320px] max-h-[320px] rounded-lg border border-[var(--divider)]"></a>`;
+            } else {
+                attHTML += `<div class="p-3 rounded bg-[var(--bg-tertiary)] border border-[var(--divider)] w-fit flex items-center gap-2"><div class="text-2xl">📄</div><div><a href="${a.url}" target="_blank" class="text-[var(--text-link)] hover:underline text-sm font-bold block">${a.filename}</a><span class="text-xs text-[var(--text-muted)]">${(a.size/1024).toFixed(1)} KB</span></div></div>`;
+            }
+        });
+        attHTML += '</div>';
+    }
+
+    // Embeds? (omitted basic impl)
+
+    // Append Content to Right Col
+    const bodyEl = document.createElement('div');
+    bodyEl.className = "msg-content";
+    if(m.type_ephemeral) bodyEl.classList.add('ephemeral-message');
+
+    bodyEl.innerHTML = contentBody + attHTML;
+
+    // Ephemeral Clyde Footer
+    if(m.type_ephemeral) {
+        bodyEl.innerHTML += `<div class="ephemeral-text">これらはあなたにだけ表示されています • <span class="text-[var(--text-link)] cursor-pointer hover:underline" onclick="this.closest('.message-wrapper').remove()">メッセージを削除</span></div>`;
+    }
+
+    rightCol.appendChild(bodyEl);
+    
+    // Assemble
+    row.appendChild(leftCol);
+    row.appendChild(rightCol);
+
+    wrapper.innerHTML = refHTML; // Ref on top
+    wrapper.appendChild(row); // Body
+
+    // TOOLBAR SVG
+    if(!m.type_ephemeral) {
+        const tb = document.createElement('div');
+        tb.className = 'msg-toolbar';
+        
+        // Add Reaction (Smiley)
+        const btnReact = `
+            <div class="toolbar-btn" title="リアクション">
+            <svg class="icon-svg" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12.251 2.003A10.003 10.003 0 0 0 12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10c0-2.02-.63-3.9-1.71-5.47a.99.99 0 0 0-1.72.84 8.01 8.01 0 1 1 5.92-3.11.99.99 0 0 0 1.25-1.56 10.15 10.15 0 0 0-3.489-1.697ZM9 12a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm3 3.5a3.5 3.5 0 0 0 3.46-3 .99.99 0 0 0-1.9-.38A1.51 1.51 0 0 1 12 13.5a1.51 1.51 0 0 1-1.56-1.38.99.99 0 0 0-1.9.38A3.5 3.5 0 0 0 12 15.5Zm3.5-2.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg>
+            </div>`;
+            
+        // Reply
+        const btnReply = `
+            <div class="toolbar-btn" title="返信" onclick='startReply(${JSON.stringify({id:m.id, author:m.author})})'>
+            <svg class="icon-svg" fill="currentColor" viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
+            </div>`;
+            
+        // Edit (Owner only)
+        const btnEdit = (m.author.id === CURRENT_USER.id) ? `
+            <div class="toolbar-btn" title="編集" onclick="startEdit({id:'${m.id}'})">
+            <svg class="icon-svg" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            </div>` : '';
+
+        // Delete (Owner only)
+        const btnDel = (m.author.id === CURRENT_USER.id) ? `
+            <div class="toolbar-btn hover:text-red-500" title="削除" onclick="deleteMsg('${m.id}')">
+            <svg class="icon-svg" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </div>` : '';
+
+        tb.innerHTML = btnReact + btnReply + btnEdit + btnDel;
+        wrapper.appendChild(tb);
+    }
+    
+    return wrapper;
 }
 
-async function selectChannel(ch) {
-    currentChannel = ch; oldestMessageId = null; cancelReply(); clearAttachments();
-    document.querySelectorAll('.channel-item.active').forEach(e => e.classList.remove('active'));
-    const ce = document.getElementById(`channel-${ch.id}`); if(ce) ce.classList.add('active');
-    delete pingCounts[ch.id]; updatePingDots();
-    
-    if(window.innerWidth < 768) showChatView();
-    let n = ch.name || (ch.recipients?ch.recipients[0].username:"DM");
-    document.getElementById('channel-name-text').innerHTML = `<span class="opacity-50 mr-1">#</span>${n}`;
-    const c = document.getElementById('message-container'); c.innerHTML='<div class="flex items-center justify-center h-full"><div class="loader"></div></div>';
-    
-    const res = await apiRequest(currentAccount.token, `/channels/${ch.id}/messages?limit=50`);
-    c.innerHTML='';
-    if(res.error) { c.innerHTML='<div class="text-red-500 text-center p-8 font-bold">アクセスできません</div>'; return; }
-    
-    if(res.data.length>0) {
-        oldestMessageId = res.data[res.data.length-1].id;
-        const frag = document.createDocumentFragment();
-        res.data.slice().reverse().forEach((m,i,arr) => {
-            const prev = i>0?arr[i-1]:null;
-            const grouped = prev && prev.author.id===m.author.id && !m.referenced_message && !prev.webhook_id && (new Date(m.timestamp)-new Date(prev.timestamp)<300000);
-            frag.appendChild(createMessageElement(m, grouped));
-        });
-        c.appendChild(frag);
+function appendMessage(m, grouped, autoScroll) {
+    const c = document.getElementById('message-container');
+    const bottomDiv = c.lastElementChild; // Usually padding div
+    // Determine strict position
+    // If autoScroll is TRUE (usually for new socket msgs), append before bottom spacer
+    const el = createMessageElement(m, grouped);
+    c.insertBefore(el, bottomDiv); // Insert before padding
+
+    if(autoScroll) {
         c.scrollTop = c.scrollHeight;
     }
 }
 
-document.getElementById('message-container').addEventListener('scroll', async function() {
-    if(this.scrollTop < 50 && oldestMessageId && !isLoadingMore && currentChannel) {
-        isLoadingMore = true; const sh = this.scrollHeight;
-        const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages?limit=50&before=${oldestMessageId}`);
-        if(res.data?.length>0) {
-            oldestMessageId = res.data[res.data.length-1].id;
-            const f = document.createDocumentFragment();
-            let lastT = 0, lastA = null;
-            res.data.reverse().forEach((m, i) => {
-               const g = i>0 && m.author.id===lastA && !m.referenced_message && (new Date(m.timestamp).getTime()-lastT<300000);
-               f.appendChild(createMessageElement(m, g)); lastT=new Date(m.timestamp).getTime(); lastA=m.author.id;
-            });
-            this.prepend(f);
-            this.scrollTop = this.scrollHeight - sh;
-        } else oldestMessageId=null;
-        isLoadingMore = false;
-    }
-});
-
-function formatTime(d) {
-    const pad = n => n.toString().padStart(2,'0');
-    return `${d.getFullYear()} ${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-function parseMarkdown(t) {
-    if (!t) return '';
-    let h = t.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    // Channel Links <#ID>
-    h = h.replace(/&lt;#(\d+)&gt;/g, (m,id) => `<span class="text-[var(--text-link)] cursor-pointer hover:underline font-medium" onclick="handleChannelLink('${id}')">#channel</span>`);
-    // Custom Emojis <:name:id> or <a:name:id>
-    h = h.replace(/&lt;(a?):(\w+):(\d+)&gt;/g, (m,a,n,id) => `<img src="https://cdn.discordapp.com/emojis/${id}.${a?'gif':'png'}" class="w-6 h-6 inline-block align-middle hover:scale-125 transition-transform" title=":${n}:">`);
-    // Mentions <@ID>
-    h = h.replace(/&lt;@!?(\d+)&gt;/g, (m,id) => `<span class="mention" onclick="handleUserLink('${id}')">@${id}</span>`);
-    // Links
-    h = h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" class="text-[var(--text-link)] hover:underline">$1</a>');
-    return h.replace(/\n/g, '<br>');
-}
-
-function handleChannelLink(id) {
-    const el = document.getElementById(`channel-${id}`);
-    if(el) el.click();
-    else alert('チャンネルID: '+id+' (このサーバー外か読み込まれていません)');
-}
-
-function createMessageElement(m, grouped) {
-    if(plugins.messageLogger) messageStore[m.id] = m;
-    let text = parseMarkdown(m.content);
-    const mentionsMe = m.mentions?.some(u => u.id === currentAccount.id) || m.content.includes(`<@${currentAccount.id}>`);
+// "I AM SPEAKING" Fix (prev user merge issue)
+function handleSendMessage() {
+    const txt = document.getElementById('message-input').value.trim();
+    if(!txt && PENDING_FILES.length === 0) return;
     
-    // Resolve Mentions Names
-    if (m.mentions) m.mentions.forEach(u => text = text.replace(`@${u.id}`, `@${u.global_name||u.username}`));
-    // Deleted Handling
-    let deletedHtml = '';
-    if(m.deleted) {
-        deletedHtml = `<span class="message-deleted-text-label">(deleted)</span>`;
-        // Text is handled by class
-    }
-
-    const isMe = m.author.id === currentAccount.id;
-    let accessories = '';
-    if (m.attachments) m.attachments.forEach(a => {
-        if(a.content_type?.startsWith('image/')) accessories += `<a href="${a.url}" target="_blank"><img src="${a.url}" class="max-w-xs max-h-80 rounded-lg mt-2 block bg-gray-900"></a>`;
-        else accessories += `<div class="mt-2 p-3 bg-[var(--bg-tertiary)] border rounded w-fit text-sm"><a href="${a.url}" target="_blank" class="text-[var(--text-link)] font-mono">📎 ${a.filename}</a></div>`;
-    });
+    IS_SENDING = true;
     
-    const timeStr = formatTime(new Date(m.timestamp));
-    const containerClass = `message-group w-full relative pl-16 pr-4 ${grouped?'grouped mt-[2px]':'mt-[1.1rem]'} ${mentionsMe?'message-mentioned':''} ${m.deleted?'message-deleted':''} ${m.isFailed?'message-failed-text':''}`;
-    const el = document.createElement('div'); 
-    el.className = containerClass; el.id = `message-${m.id}`; el.dataset.messageId=m.id; el.dataset.authorId=m.author.id;
-    
-    if(plugins.clickAction && !m.deleted) el.addEventListener('dblclick', () => startReply(m));
-
-    let toolbar = '';
-    if(!m.deleted) {
-        toolbar = `<div class="message-toolbar absolute -top-4 right-4 rounded shadow-sm bg-[var(--bg-secondary)] flex items-center p-0.5 z-20 border border-[var(--border-color)]">
-            ${isMe ? `<button class="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500" onclick="startEdit('${m.id}')">✏️</button><button class="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-red-500" onclick="deleteMessage('${m.id}')">🗑️</button>` : ''}
-            <button class="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500" onclick='startReply(${JSON.stringify({id:m.id,author:m.author})})'>↩️</button>
-        </div>`;
-    }
-
-    let refHtml = '';
-    if(m.referenced_message && !grouped) {
-        const rm = m.referenced_message;
-        refHtml = `<div class="absolute top-1 left-[70px] -mt-5 opacity-70 text-sm flex items-center gap-1 w-fit cursor-pointer select-none" onclick="scrollToMsg('${rm.id}')"><div class="reply-spine"></div><img src="${rm.author?.avatar?`https://cdn.discordapp.com/avatars/${rm.author.id}/${rm.author.avatar}.png?size=16`:'https://cdn.discordapp.com/embed/avatars/0.png'}" class="w-4 h-4 rounded-full"><span class="font-bold text-xs">@${rm.author?.global_name||rm.author?.username||'User'}</span> <span class="text-xs truncate max-w-[200px]">${rm.content||'Click to view'}</span></div>`;
-    }
-
-    if(grouped) {
-        el.innerHTML = `${toolbar} <div class="message-content-text relative pl-1">${text}${deletedHtml}</div> ${accessories}`;
-    } else {
-        const u = m.author;
-        const avUrl = u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${u.discriminator%5}.png`;
-        let deco = u.avatar_decoration_data ? `<img src="https://cdn.discordapp.com/avatar-decoration-presets/${u.avatar_decoration_data.asset}.png?size=96" class="avatar-decoration">` : '';
-        
-        el.innerHTML = `
-        ${refHtml} ${toolbar}
-        <div class="absolute left-4 top-0 w-10 h-10 cursor-pointer avatar-container select-none">
-            <img src="${avUrl}" class="avatar-img rounded-full shadow-sm">
-            ${deco}
-        </div>
-        <div class="flex items-baseline gap-2 leading-snug">
-            <span class="font-medium hover:underline cursor-pointer" style="${m.member?.color?`color:#${m.member.color.toString(16).padStart(6,'0')}`:''}">${m.member?.nick||u.global_name||u.username}</span>
-            <span class="text-xs text-[var(--text-secondary)] font-medium">${timeStr}</span>
-        </div>
-        <div class="message-content-text mt-0.5 relative">${text}${deletedHtml}</div>
-        ${accessories}`;
-    }
-    
-    // System message handling (Join)
-    if(m.type === 7) {
-        el.className = 'px-4 py-2 opacity-70 flex items-center gap-2 text-green-500';
-        el.innerHTML = `<span>👋</span> <b>${m.author.global_name||m.author.username}</b> がサーバーに参加しました！`;
-    }
-
-    // Append Clyde if Failed
-    if (m.isFailed) {
-        const clydeId = 'clyde-'+m.id;
-        const clydeDiv = document.createElement('div');
-        clydeDiv.className = 'mt-1 ml-0 flex gap-2 select-none opacity-90';
-        clydeDiv.innerHTML = `<div class="w-[3px] bg-red-500 rounded ml-1"></div>
-            <div class="ml-2 text-sm">
-                <div class="flex items-center gap-1 mb-1">
-                    <span class="bg-[#5865F2] text-white text-[10px] px-1 rounded">Clyde</span>
-                    <span class="text-xs opacity-80">System</span>
-                </div>
-                <div class="opacity-90">メッセージを送信できませんでした (${m.errorReason || 'Unknown'})</div>
-                <div class="text-xs mt-1">
-                    <span class="opacity-70">これらはあなたにだけ表示されています</span> • 
-                    <span class="text-[var(--text-link)] cursor-pointer hover:underline" onclick="document.getElementById('message-${m.id}').remove()">メッセージを削除</span>
-                </div>
-            </div>`;
-        el.appendChild(clydeDiv);
-    }
-
-    return el;
-}
-
-async function sendMessage() {
-    if(!currentChannel || !currentAccount) return;
-    const box = document.getElementById('message-input');
-    let txt = box.value.trim();
-    if(!txt && attachedFiles.length===0) return;
-
-    // Check Max Length
-    if (txt.length > maxCharCount) {
-        if(confirm(`文字数が多すぎます(${txt.length} / ${maxCharCount})。\n"message.txt" としてファイル送信しますか？`)) {
-            const blob = new Blob([txt], {type: 'text/plain'});
-            const file = new File([blob], "message.txt", {type: 'text/plain'});
-            if(attachedFiles.length < 10) attachedFiles.push(file);
-            txt = ""; 
-        } else return;
-    }
-    
-    // UI update immediate (clearing inputs) to prevent double click
-    const sendTxt = txt;
-    const sendFiles = [...attachedFiles];
-    box.value = ''; attachedFiles = []; renderAttachments(); handleInput();
-
-    // Temp Message
     const now = new Date();
-    const tempId = 'temp-'+now.getTime();
-    const fake = { id:tempId, author:currentAccount, content:sendTxt, timestamp:now.toISOString(), isSending:true, attachments: sendFiles.map(f=>({url:'#',filename:f.name})) };
-    renderMsg(fake, true);
-
-    const body = new FormData();
-    body.append('payload_json', JSON.stringify({ content: sendTxt, message_reference: replyingTo ? { message_id: replyingTo.messageId } : undefined }));
-    sendFiles.forEach((f,i) => body.append(`files[${i}]`, f));
+    // Use negative ID to not conflict real API
+    const tempID = 'loc-' + now.getTime();
     
-    const res = await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages`, 'POST', body, true);
-    
-    const tempEl = document.getElementById(`message-${tempId}`);
-    if (res.error) {
-        // Replace temp styling with error state
-        fake.isSending = false; fake.isFailed = true; fake.errorReason = res.error.message || 'Error';
-        const newEl = createMessageElement(fake, tempEl?.classList.contains('grouped'));
-        if(tempEl) tempEl.replaceWith(newEl);
-        scrollBottom();
-    } else {
-        if(tempEl) tempEl.remove(); // The websocket event will insert the real message, avoid duplicates
-        cancelReply();
-    }
-}
-
-function handleInput() {
-    const i=document.getElementById('message-input'), b=document.getElementById('send-button'), c=document.getElementById('char-counter');
-    i.style.height='auto'; i.style.height=i.scrollHeight+'px';
-    const l=i.value.length;
-    b.disabled = l===0 && attachedFiles.length===0;
-    c.classList.toggle('opacity-0', !plugins.showCharacter);
-    c.innerText = `${l} / ${maxCharCount}`; c.style.color=l>maxCharCount?'#ed4245':'';
-}
-
-function renderMsg(m, forceScroll=false) {
-    const c = document.getElementById('message-container');
-    const bottom = c.scrollTop + c.clientHeight >= c.scrollHeight - 50;
-    
-    const prev = c.lastElementChild;
+    // Check previous message for grouping
+    const container = document.getElementById('message-container');
+    const lastMsg = container.children.length > 1 ? container.children[container.children.length - 2] : null;
     let grouped = false;
-    if(prev && !m.isSending && !prev.classList.contains('message-sending') && !m.type) {
-         if(prev.dataset.authorId === m.author.id && !m.webhook_id && !m.referenced_message) grouped=true;
-    }
-    c.appendChild(createMessageElement(m, grouped));
     
-    if (bottom || forceScroll || m.author.id === currentAccount.id) c.scrollTop = c.scrollHeight;
-}
-
-function connectWS() {
-    if (!currentAccount) return; if(ws) ws.close();
-    ws = new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json');
-    ws.onmessage = e => {
-        const d = JSON.parse(e.data);
-        if (d.s) lastSequence = d.s;
-        if(d.op===10) { heartbeatInterval = setInterval(()=>ws.send(JSON.stringify({op:1,d:lastSequence})), d.d.heartbeat_interval); ws.send(JSON.stringify({op:2,d:{token:currentAccount.token,properties:{$os:"linux",$browser:"disco",$device:"disco"}}})); }
-        else if (d.t === 'READY') { if(d.d.user_settings?.guild_folders) { guildFolders=d.d.user_settings.guild_folders; renderFolders(); } }
-        else if (d.t === 'MESSAGE_CREATE' && d.d.channel_id===currentChannel?.id) { document.querySelectorAll('.message-sending').forEach(e=>e.remove()); renderMsg(d.d); }
-        else if (d.t === 'MESSAGE_CREATE') { 
-            const men = d.d.mentions?.find(u=>u.id===currentAccount.id);
-            if(men || (d.d.referenced_message?.author.id===currentAccount.id)) { pingCounts[d.d.channel_id]=(pingCounts[d.d.channel_id]||0)+1; updatePingDots(); }
-        }
-        else if (d.t === 'MESSAGE_DELETE' && messageStore[d.d.id]) { 
-            const m = messageStore[d.d.id]; m.deleted=true; rerenderMsg(d.d.id, m);
-        }
-        else if (d.t === 'MESSAGE_UPDATE' && d.d.id && messageStore[d.d.id]) {
-            const m = {...messageStore[d.d.id], ...d.d}; messageStore[d.d.id]=m; rerenderMsg(d.d.id, m);
-        }
+    // Prevent merge if last msg was from different person OR time gap too big
+    if(lastMsg && lastMsg.dataset.authorId === CURRENT_USER.id) {
+        grouped = true; 
     }
-    ws.onclose = () => setTimeout(connectWS, 3000);
-}
 
-function rerenderMsg(id, m) {
-    const el = document.getElementById(`message-${id}`); if(!el) return;
-    const n = createMessageElement(m, el.classList.contains('grouped'));
-    el.replaceWith(n);
-}
-
-// Right Click Context Menu
-function handleContextMenu(e) {
-    const mEl = e.target.closest('.message-group');
-    const cEl = e.target.closest('.channel-item');
-    const sEl = e.target.closest('.server-icon');
+    const tempMsg = {
+        id: tempID,
+        content: txt,
+        author: CURRENT_USER,
+        timestamp: now.toISOString(),
+        nonce: tempID,
+        attachments: PENDING_FILES.map(f => ({filename: f.name, url:'#', size:f.size})),
+        isSending: true
+    };
     
-    if (mEl || cEl || sEl) {
-        e.preventDefault();
-        const menu = document.getElementById('custom-context-menu');
-        menu.innerHTML = '';
-        
-        const addItem = (txt, fn, color='') => {
-            const d = document.createElement('div'); d.className = `ctx-item ${color}`;
-            d.innerText = txt; d.onclick = fn; menu.appendChild(d);
-        };
+    MESSAGE_CACHE.set(tempID, tempMsg);
+    appendMessage(tempMsg, grouped, true);
 
-        if (mEl) {
-            const id = mEl.dataset.messageId;
-            const content = mEl.querySelector('.message-content-text')?.innerText || '';
-            const mData = messageStore[id];
+    // Clean Input
+    document.getElementById('message-input').value = '';
+    document.getElementById('file-preview-list').innerHTML = '';
+    PENDING_FILES = [];
+
+    // Actually Send
+    sendMessage(txt, tempID);
+}
+
+async function sendMessage(txt, nonce) {
+    if(!CURRENT_CHANNEL) return;
+    // ...Form Construction
+    const fd = new FormData();
+    const payload = {
+        content: txt, 
+        message_reference: replyTarget ? { message_id: replyTarget.messageId } : undefined
+    };
+    fd.append('payload_json', JSON.stringify(payload));
+    
+    // API logic ...
+    try {
+        const res = await fetch(`${API_BASE}/channels/${CURRENT_CHANNEL.id}/messages`, {
+            method: 'POST',
+            headers: {'Authorization': CURRENT_USER.token},
+            body: fd
+        });
+
+        if(!res.ok) {
+            // Error! Replace local message with Clyde Error
+            const err = await res.json();
+            const tempEl = document.getElementById('msg-'+nonce);
+            if(tempEl) tempEl.remove();
             
-            addItem('Copy Text', () => { navigator.clipboard.writeText(content); });
-            addItem('Copy ID', () => { navigator.clipboard.writeText(id); });
-            if (mData && mData.author.id === currentAccount.id && !mData.deleted) {
-                menu.appendChild(document.createElement('div')).className='ctx-sep';
-                addItem('Edit', () => startEdit(id));
-                addItem('Delete', () => deleteMessage(id), 'text-red-500');
+            renderClydeError(`メッセージの送信に失敗しました: ${err.message || 'Unknown Error'}`);
+        } else {
+            // Success: Wait for WS MESSAGE_CREATE to verify
+            cancelReply();
+        }
+    } catch(e) {
+        const tempEl = document.getElementById('msg-'+nonce);
+        if(tempEl) tempEl.remove();
+        renderClydeError("ネットワークエラーが発生しました。");
+    }
+}
+
+function renderClydeError(msg) {
+    // FAKE BOT "Clyde"
+    const clyde = {
+        id: 'error-'+Date.now(),
+        type_ephemeral: true,
+        content: msg,
+        author: {
+            id: 'clyde',
+            username: 'Clyde',
+            global_name: 'Clyde',
+            avatar: null, // use SVG locally or something
+            bot: true
+        },
+        timestamp: new Date().toISOString()
+    };
+    appendMessage(clyde, false, true);
+}
+
+/** 
+ * UTILS
+ */
+function copyTxt(t) { navigator.clipboard.writeText(t); document.getElementById('ctx-menu').classList.add('hidden'); }
+
+let replyTarget = null;
+function startReply(m) {
+    replyTarget = {messageId: m.id};
+    document.getElementById('reply-bar').classList.remove('hidden');
+    document.getElementById('reply-bar').classList.add('flex');
+    document.getElementById('reply-user').innerText = m.author.global_name||m.author.username;
+    document.getElementById('message-input').focus();
+    document.getElementById('ctx-menu').classList.add('hidden');
+}
+
+function cancelReply() {
+    replyTarget = null;
+    document.getElementById('reply-bar').classList.add('hidden');
+}
+
+// Arrow Key Edit (Last Message)
+function handleEnterKey(e) {
+    if(e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+    }
+    if(e.key === 'ArrowUp' && e.target.value === '') {
+        e.preventDefault();
+        // find last own message
+        const els = document.querySelectorAll('.message-wrapper');
+        for(let i=els.length-1; i>=0; i--) {
+            if(els[i].dataset.authorId === CURRENT_USER.id) {
+                // Trigger edit mode (not fully implemented in snippet)
+                startEdit({id: els[i].id.replace('msg-', '')});
+                break;
             }
         }
-        else if (cEl) {
-            const id = cEl.dataset.channelId;
-            addItem('Copy Channel ID', () => navigator.clipboard.writeText(id));
-        }
-        else if (sEl) {
-            const id = sEl.dataset.guildId;
-            addItem('Copy Server ID', () => navigator.clipboard.writeText(id));
-        }
-        
-        menu.classList.remove('hidden');
-        let x = e.pageX, y = e.pageY;
-        if(x + 200 > window.innerWidth) x -= 200;
-        menu.style.left = x + 'px'; menu.style.top = y + 'px';
-    } else {
-        document.getElementById('custom-context-menu').classList.add('hidden');
     }
 }
 
-async function deleteMessage(id) {
-    await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages/${id}`, 'DELETE');
-    const el=document.getElementById(`message-${id}`);
-    if(el) { el.querySelector('.message-content-text').style.color='#ed4245'; el.classList.add('message-deleted'); }
-}
-
-function startEdit(id) {
-    const el = document.getElementById(`message-${id}`).querySelector('.message-content-text');
-    const old = messageStore[id]?.content || el.innerText;
-    el.innerHTML = `<textarea class="input-field w-full p-2 bg-[var(--bg-tertiary)] rounded outline-none h-auto border border-blue-500" rows="1">${old}</textarea><div class="text-xs mt-1"><span class="text-blue-500 cursor-pointer hover:underline" onclick="saveEdit('${id}', this.previousElementSibling.value)">保存</span> • <span class="cursor-pointer hover:underline" onclick="rerenderMsg('${id}', messageStore['${id}'])">キャンセル</span></div>`;
-    el.querySelector('textarea').focus();
-    el.querySelector('textarea').onkeydown = e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(id, e.target.value); } if(e.key==='Escape') rerenderMsg(id, messageStore[id]); }
-}
-async function saveEdit(id, txt) { await apiRequest(currentAccount.token, `/channels/${currentChannel.id}/messages/${id}`, 'PATCH', {content: txt}); }
-
-function editLastOwnMessage() {
-    const list = Array.from(document.querySelectorAll('.message-group'));
-    for (let i = list.length - 1; i >= 0; i--) {
-        const el = list[i];
-        if (el.dataset.authorId === currentAccount.id && !el.classList.contains('message-deleted') && !el.classList.contains('message-failed-text')) {
-            startEdit(el.dataset.messageId); break;
+// Basic Editing Textarea Replace (Snippet)
+function startEdit(mObj) {
+    const el = document.getElementById('msg-'+mObj.id);
+    if(!el) return;
+    const body = el.querySelector('.msg-content');
+    const oldHTML = body.innerHTML; // Cache html to revert
+    const raw = MESSAGE_CACHE.get(mObj.id)?.content || "";
+    
+    body.innerHTML = `
+    <div class="bg-[var(--bg-tertiary)] p-2 rounded">
+        <input class="w-full bg-[var(--bg-secondary)] p-2 rounded text-[var(--text-normal)]" value="${raw.replace(/"/g, '&quot;')}">
+        <div class="text-xs mt-1">
+             escape でキャンセル • enter で <span class="text-blue-500 cursor-pointer" onclick="confirmEdit('${mObj.id}')">保存</span>
+        </div>
+    </div>`;
+    
+    const inp = body.querySelector('input');
+    inp.focus();
+    inp.onkeydown = async (e) => {
+        if(e.key==='Enter') {
+             await req(`/channels/${CURRENT_CHANNEL.id}/messages/${mObj.id}`, 'PATCH', {content: inp.value});
+        }
+        if(e.key==='Escape') {
+             const m = MESSAGE_CACHE.get(mObj.id);
+             el.replaceWith(createMessageElement(m, el.classList.contains('grouped')));
         }
     }
 }
 
-function addAccount(token) {
-    token = token.trim().replace(/^"|"$/g,'');
-    if(!token) return;
-    document.getElementById('login-error').innerText='';
-    const btn = document.getElementById('add-account-button'); btn.innerText='確認中...'; btn.disabled=true;
-    fetch('https://discord.com/api/v10/users/@me', {headers:{'Authorization':token}}).then(r=>r.json()).then(d=>{
-        btn.disabled=false; btn.innerText='ログイン';
-        if(d.id) { const a=getAccounts(); if(!a.find(x=>x.id===d.id)) a.push({...d, token}); else a[a.findIndex(x=>x.id===d.id)]={...d, token}; saveAccounts(a); switchAccount(d.id); }
-        else document.getElementById('login-error').innerText = "無効なトークンです";
+async function deleteMsg(id) {
+    await req(`/channels/${CURRENT_CHANNEL.id}/messages/${id}`, 'DELETE');
+    // Visual removal handled by WS
+}
+
+// CTX MENU POS
+function showCtx(e, items) {
+    e.preventDefault();
+    const m = document.getElementById('ctx-menu');
+    m.innerHTML = '';
+    items.forEach(i => {
+        const d = document.createElement('div');
+        d.className = 'ctx-item';
+        d.innerHTML = `<span>${i.label}</span>`;
+        d.onclick = i.action;
+        m.appendChild(d);
+    });
+    
+    m.classList.remove('hidden');
+    let x = e.pageX, y = e.pageY;
+    if(x + 180 > window.innerWidth) x -= 180;
+    m.style.left = x+'px';
+    m.style.top = y+'px';
+}
+document.addEventListener('click', () => document.getElementById('ctx-menu').classList.add('hidden'));
+
+// Time Formats
+function longTime(iso) { return new Date(iso).toLocaleString('ja-JP'); }
+
+function openSettings() {
+    document.getElementById('settings-modal').classList.remove('hidden');
+    // Render Plugins
+    const list = document.getElementById('plugin-list');
+    list.innerHTML = '';
+    PLUGIN_DEFS.forEach(p => {
+        list.innerHTML += `
+        <div class="flex items-center justify-between border-b border-[var(--divider)] pb-2">
+            <div>
+                <div class="font-bold text-[var(--text-normal)]">${p.name}</div>
+                <div class="text-xs text-[var(--text-muted)]">${p.desc}</div>
+            </div>
+            <div class="cursor-pointer text-2xl ${PLUGINS[p.key]?'text-green-500':'text-gray-500'}" onclick="togglePlugin('${p.key}', this)">
+                ${PLUGINS[p.key] ? '■' : '□'}
+            </div>
+        </div>`;
+    });
+    
+    setTimeout(()=>document.getElementById('settings-modal').classList.remove('opacity-0'), 10);
+    setTimeout(()=>document.getElementById('settings-inner').classList.remove('scale-95'), 10);
+}
+
+function closeSettings() {
+    document.getElementById('settings-inner').classList.add('scale-95');
+    document.getElementById('settings-modal').classList.add('opacity-0');
+    setTimeout(()=>document.getElementById('settings-modal').classList.add('hidden'), 200);
+}
+
+function togglePlugin(k, btn) {
+    PLUGINS[k] = !PLUGINS[k];
+    btn.className = `cursor-pointer text-2xl ${PLUGINS[k]?'text-green-500':'text-gray-500'}`;
+    btn.innerText = PLUGINS[k]?'■':'□';
+    localStorage.setItem('discord_lite_plugins', JSON.stringify(PLUGINS));
+}
+
+// Helpers
+function handleInputResize(e) { e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px'; }
+function setupDragDrop() {
+    document.addEventListener('dragenter', e=>{e.preventDefault();document.body.classList.add('dragging')});
+    document.getElementById('drag-overlay').addEventListener('dragleave', e=>{e.preventDefault();document.body.classList.remove('dragging')});
+    document.addEventListener('dragover', e=>e.preventDefault());
+    document.addEventListener('drop', e=>{
+        e.preventDefault();
+        document.body.classList.remove('dragging');
+        if(e.dataTransfer.files.length>0) alert('ファイルアップロード処理(未実装)');
     });
 }
-function deleteAccount(id,e) { e.stopPropagation(); const a=getAccounts().filter(x=>x.id!==id); saveAccounts(a); if(getActiveAccountId()===id) showLoginScreen(); else renderAccountSwitcher(); }
-
-function scrollToMsg(id) {
-    const el = document.getElementById(`message-${id}`);
-    if (el) { el.scrollIntoView({behavior:'auto',block:'center'}); el.classList.add('flash-highlight'); setTimeout(()=>el.classList.remove('flash-highlight'),1500); }
-    else alert('メッセージがロードされていません');
+function switchSettingsTab(t){
+    document.getElementById('tab-content-plugins').className = t==='plugins'?'block':'hidden';
+    document.getElementById('tab-content-general').className = t==='general'?'block':'hidden';
+    document.getElementById('tab-btn-plugins').classList.toggle('bg-[var(--bg-tertiary)]', t==='plugins');
+    document.getElementById('tab-btn-general').classList.toggle('bg-[var(--bg-tertiary)]', t==='general');
 }
-
-function startReply(m) { replyingTo = {messageId: m.id, author: m.author}; document.getElementById('reply-bar').classList.remove('hidden'); document.getElementById('reply-bar').classList.add('flex'); document.getElementById('reply-username').innerText = m.author.global_name||m.author.username; document.getElementById('message-input').focus(); }
-function cancelReply() { replyingTo = null; document.getElementById('reply-bar').classList.add('hidden'); document.getElementById('reply-bar').classList.remove('flex'); }
-
-function renderPluginList() {
-    const l = document.getElementById('plugin-list'); l.innerHTML = '';
-    const items = [
-        {k:'clickAction',n:'Double Click Reply',d:'ダブルクリックで返信'},
-        {k:'showCharacter',n:'Character Counter',d:'文字数カウンター表示'},
-        {k:'messageLogger',n:'Message Logger',d:'削除済みメッセージを表示(ログ保持)'},
-    ];
-    items.forEach(p => {
-        l.innerHTML += `<div class="plugin-item"><div><div class="font-bold">${p.n}</div><div class="text-xs opacity-70">${p.d}</div></div><label class="switch"><input type="checkbox" ${plugins[p.k]?'checked':''} onchange="plugins['${p.k}']=this.checked;localStorage.setItem('plugins',JSON.stringify(plugins));handleInput()"><span class="slider"></span></label></div>`;
-    });
-    l.innerHTML += `<a href="https://github.com/Bloxd-H/discord_lite" target="_blank" class="block mt-4 text-xs text-blue-500 hover:underline">GitHub Repository: Bloxd-H/discord_lite</a>`;
-}
-function renderSettingsModal() { switchSettingsTab('plugins'); renderPluginList(); document.getElementById('theme-check-'+(localStorage.theme||'dark')).classList.remove('hidden'); document.getElementById('settings-modal').classList.remove('hidden'); }
-function switchSettingsTab(t) { document.querySelectorAll('.settings-tab-item').forEach(e=>e.classList.remove('active')); document.getElementById(`tab-btn-${t}`).classList.add('active'); document.querySelectorAll('[id^=tab-content]').forEach(e=>e.classList.add('hidden')); document.getElementById(`tab-content-${t}`).classList.remove('hidden'); }
-function setTheme(t) { localStorage.theme=t; document.documentElement.className=t==='dark'?'dark':''; document.getElementById('theme-check-dark').classList.toggle('hidden',t!=='dark'); document.getElementById('theme-check-light').classList.toggle('hidden',t!=='light'); }
-function updatePingDots() { document.querySelectorAll('.ping-dot').forEach(e=>e.remove()); Object.keys(pingCounts).forEach(id=>{if(pingCounts[id]>0) document.getElementById(`channel-${id}`)?.insertAdjacentHTML('beforeend','<div class="ping-dot"></div>')}); }
-    </script>
+</script>
 </body>
 </html>
